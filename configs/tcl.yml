@@ -1,0 +1,87 @@
+_base_: "default.yml"
+data:
+  batch_size: 64
+  dataset:
+    train:
+      - gcc3m
+      - gcc12m
+  train: 
+      root_dir: [
+                  # 'pcache://vilabpcacheproxyi-pool.cz50c.alipay.com:39999/mnt/bacba1e325b67e1aa48e7ff40f7e80bf/CC12M/images',
+                  '../data/CC4M/cc4m_imgs.zip',
+                ]
+      meta_file: [
+                  '../data/CC4M/cc4m_revised.json',
+                ]
+      # read_from: petrel
+      read_from: zip
+      use_dali: True
+      # batch_size: 256
+      input_size: 224
+      test_resize: 256
+
+      image_reader:
+          type: pil
+      sampler:
+          type: distributed_epoch
+      transforms:
+          type: STANDARD
+      fseek: False
+      
+
+model:
+  type: TCL
+  clip_model: ViT-B/16  # NOTE only ViT-based backbones are supported.
+  ie_freeze: 11  # index [1 ~ 12]
+  ie_ignore_last_attn: false  # use MaskCLIP
+  masker:
+    type: Masker
+    decoder:
+      type: GDecoder
+      double: true
+      n_layers: 2
+      kernel_size: 3
+      act: gelu
+      norm: ln
+    # sim2mask:
+    #   init_w: 10.0
+    #   init_b: -2.5
+    #   gumbel_tau: 1.0
+    #   learnable: true
+    sim2mask:
+      init_w: 1.0
+      init_b: 0.0
+      gumbel_tau: 1.0
+      learnable: false
+
+  # tcl
+  tcl_w: 1.0 # contrastive loss
+  tv_w: 1.0 # patch contrastive loss
+  area_w: 0.4
+
+train:
+  total_steps: 50000
+  warmup_steps: 15000
+  ust_steps: 30000  # train decoder only in this steps
+  base_lr: 3e-4
+  weight_decay: 0.05
+  min_lr: 4e-5
+  clip_grad: 5.0
+  optimizer:
+    eps: 1e-6
+
+evaluate:
+  pamr: true
+  bg_thresh: 0.4
+  kp_w: 0.3
+
+  eval_freq: 5000
+  template: custom
+  task:
+    - t_voc20
+    # - t_context59
+
+checkpoint:
+  save_topk: 0
+
+model_name: "release"
