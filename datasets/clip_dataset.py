@@ -27,6 +27,8 @@ from io import BytesIO
 from .zip_reader import ZipReader
 from zipfile import ZipFile, BadZipFile
 import multiprocessing
+import csv
+# from pcache_fileio import fileio
 
 lemmatizer = WordNetLemmatizer()
 
@@ -93,7 +95,7 @@ class ClipDataset(BaseDataset):
         "{"filename": "n01440764/n01440764_10026.JPEG", "label": 0, "label_name": "dog"}\n"
     """
 
-    def __init__(self, root_dir, meta_file, img_transform=None, text_transform=None,
+    def __init__(self, root_dir, meta_file, tag_file, num_tags=4585, img_transform=None, text_transform=None,
                  read_from='dir', evaluator=None, image_reader_type='pil',fseek=False, split='train'):
         if not isinstance(meta_file, List) and not isinstance(meta_file, omegaconf.listconfig.ListConfig):
             meta_file = [meta_file]
@@ -121,6 +123,10 @@ class ClipDataset(BaseDataset):
 
         self.tokenizer = SimpleTokenizer()
 
+        with open(tag_file, 'r') as f:
+            self.meta_tag = json.load(f) 
+        self.num_tags = num_tags
+
         self.metas = []
         ### fseek uses file seek to load each line with pointer online ###
         ### this saves the memory while adding the loading time ###
@@ -138,8 +144,8 @@ class ClipDataset(BaseDataset):
                 self.line_offsets.append(line_offset)
 
         else:
-            ### read from local file and load all metafile info ###
-            for rd, each_meta_file in zip(root_dir, meta_file):
+           ### read from local file and load all metafile info ###
+           for rd, each_meta_file in zip(root_dir, meta_file):
                 with open(each_meta_file) as f:
                     lines = f.readlines()
                 self.num += len(lines)
@@ -147,9 +153,9 @@ class ClipDataset(BaseDataset):
                 for line in lines:
                     info = json.loads(line)
                     filename = osp.join(rd, info['filename'])
-                    ### add root_dir to filename ###
                     info['filename'] = filename
                     self.metas.append(info)
+
         super(ClipDataset, self).__init__(root_dir=root_dir,
                                           meta_file=meta_file,
                                           read_from=read_from,
@@ -218,14 +224,24 @@ class ClipDataset(BaseDataset):
     def __getitem__(self, idx):
         curr_meta = self._load_meta(idx)
         filename = curr_meta['filename']
+
+        tag_label = self.meta_tag[os.path.basename(filename)]
+        tag_label_embedding = torch.zeros(self.num_tags, dtype=torch.float)
+        if len(tag_label) > 0:
+            tag_label_embedding[tag_label] = 1 
+
         caption = curr_meta['caption'] if 'caption' in curr_meta else ''
         ret_info = {}
 
         #############
 
         try:
-            assert self.is_contains_chinese(caption) == False
-
+            # assert self.is_contains_chinese(caption) == False
+            while self.is_contains_chinese(caption):
+                curr_meta = self._load_meta((idx + 1) % self.num)
+                filename = curr_meta['filename']
+                caption = curr_meta['caption'] if 'caption' in curr_meta else ''
+                
             if self.read_from == 'dir':
                 ### load from dir ###
                 img = Image.open(filename).convert('RGB')
@@ -249,9 +265,11 @@ class ClipDataset(BaseDataset):
 
             ret_info['image'] = image
             ret_info['caption'] = caption
+
+            ret_info['tag_label'] = tag_label_embedding
             return ret_info    
                         
-        except Exception as e:          
+        except Exception as e:        
             print(e)
             # return self.__getitem__(0)
     

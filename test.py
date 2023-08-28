@@ -95,16 +95,16 @@ def train(cfg):
     dist.barrier()
 
     # build datasets
-    dataset_train, data_loader_train = build_loader(cfg.data)
+    # dataset_train, data_loader_train = build_loader(cfg.data)
 
     # build validation loaders
     val_loaders = {}
-    # for key in cfg.evaluate.task:
-    #     if key == "cls":
-    #         continue
+    for key in cfg.evaluate.task:
+        if key == "cls":
+            continue
 
-    #     loader = build_seg_dataloader(build_seg_dataset(cfg.evaluate.get(key)))
-    #     val_loaders[key] = loader
+        loader = build_seg_dataloader(build_seg_dataset(cfg.evaluate.get(key)))
+        val_loaders[key] = loader
 
     logger = get_logger()
 
@@ -137,8 +137,8 @@ def train(cfg):
 
     scaler = torch.cuda.amp.GradScaler(enabled=cfg.train.fp16)
 
-    if cfg.checkpoint.resume:
-        load_checkpoint(cfg, model.module, optimizer, lr_scheduler, scaler)
+    # if cfg.checkpoint.resume:
+    #     load_checkpoint(cfg, model.module, optimizer, lr_scheduler, scaler)
 
     if cfg.evaluate.eval_only:
         res = evaluate(cfg, model, val_loaders)
@@ -150,7 +150,7 @@ def train(cfg):
     logger.info("Start training")
     start_time = time.time()
 
-    do_training(cfg, model, data_loader_train, optimizer, lr_scheduler, scaler, val_loaders)
+    do_training(cfg, model, 1, optimizer, lr_scheduler, scaler, val_loaders)
 
     total_time = time.time() - start_time
     total_time_str = str(datetime.timedelta(seconds=int(total_time)))
@@ -168,135 +168,31 @@ def do_training(config, model, data_loader, optimizer, lr_scheduler, scaler, val
     else:
         wandb = None
 
-    num_steps = len(data_loader)
-    batch_time = AverageMeter()
-    loss_meter = AverageMeter()
-    norm_meter = AverageMeter()
-    log_vars_meters = defaultdict(AverageMeter)
+    # num_steps = len(data_loader)
+    # batch_time = AverageMeter()
+    # loss_meter = AverageMeter()
+    # norm_meter = AverageMeter()
+    # log_vars_meters = defaultdict(AverageMeter)
 
-    total_steps = config.train.total_steps
-    org_total_steps = total_steps
-    # update training steps by evaluation step (discard non-evaluation steps)
-    # total_steps = total_steps - (total_steps % config.evaluate.eval_freq) + 1
-    if org_total_steps != total_steps:
-        logger.info(f"Total step is updated: {org_total_steps} -> {total_steps}")
+    # total_steps = config.train.total_steps
+    # org_total_steps = total_steps
+    # # update training steps by evaluation step (discard non-evaluation steps)
+    # # total_steps = total_steps - (total_steps % config.evaluate.eval_freq) + 1
+    # if org_total_steps != total_steps:
+    #     logger.info(f"Total step is updated: {org_total_steps} -> {total_steps}")
 
-    ckpt_manager = CheckpointManager(config.checkpoint.save_topk, config.output)
+    # ckpt_manager = CheckpointManager(config.checkpoint.save_topk, config.output)
 
-    ust_check = True
-    end = time.time()
-    for step, samples in enumerate(cyclize(data_loader), config.train.start_step):
-        if step >= total_steps:
-            break
+    # ust_check = True
+    # end = time.time()
+    # for step, samples in enumerate(cyclize(data_loader), config.train.start_step):
+    #     if step >= total_steps:
+    #         break
         # if ust_check and config.train.ust_steps and step >= config.train.ust_steps:
         #     model.module.set_train(decoder_only=False, config=config)
         #     logger.info(f" -- [{step}] UST stage is DONE; Now fine-tuning stage begins ...")
         #     ust_check = False
-
-        batch_size = config.data.batch_size
-        caption = samples["caption"]
-
-        optimizer.zero_grad()
-        with torch.cuda.amp.autocast(enabled=config.train.fp16):
-            losses = model(samples['image'], samples["caption"], samples["tag_label"])
-
-        loss, log_vars = parse_losses(losses)
-
-        scaler.scale(loss).backward()
-        scaler.unscale_(optimizer)
-        if config.train.clip_grad:
-            grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), config.train.clip_grad)
-        else:
-            grad_norm = get_grad_norm(model.parameters())
-
-        scaler.step(optimizer)
-        scaler.update()
-
-        lr_scheduler.step()
-        torch.cuda.synchronize()
-
-        loss_meter.update(loss.item(), batch_size)
-        for loss_name in log_vars:
-            log_vars_meters[loss_name].update(log_vars[loss_name].item(), batch_size)
-        norm_meter.update(grad_norm)
-        batch_time.update(time.time() - end)
-        end = time.time()
-
-        if step % config.print_freq == 0:
-            lr = optimizer.param_groups[0]["lr"]
-            epoch = step / num_steps
-            memory_used = torch.cuda.max_memory_allocated() / (1024.0 * 1024.0)
-            #  etas = batch_time.avg * (num_steps - step)
-            log_vars_str = "  ".join(
-                f"{n} {m.val:7.4f} ({m.avg:7.4f})" for n, m in log_vars_meters.items()
-            )
-            logger.info(
-                f"Train: [EP {epoch:.1f}][{step:6d}/{total_steps}]  "
-                #  f'eta {datetime.timedelta(seconds=int(etas))} lr {lr:.6f}\t'
-                f"time {batch_time.val:.3f} ({batch_time.avg:.3f})  "
-                f"total_loss {loss_meter.val:7.4f} ({loss_meter.avg:7.4f})  "
-                f"{log_vars_str}  "
-                f"grad_norm {norm_meter.val:7.4f} ({norm_meter.avg:7.4f})  "
-                f"lr {lr:.6f}  "
-                f"mem {memory_used:.0f}MB"
-            )
-
-            if wandb is not None:
-                log_stat = {f"iter/train_{n}": m.val for n, m in log_vars_meters.items()}
-                log_stat["iter/train_total_loss"] = loss_meter.val
-                log_stat["iter/grad_norm"] = norm_meter.val
-                log_stat["iter/learning_rate"] = lr
-                log_stat["iter/epoch"] = epoch
-                log_stat["iter/grad_scale"] = scaler.get_scale()
-
-                # image & mask logging
-                if "mask" in losses and step % 500 == 0:
-                    N = 3
-
-                    # un-normalize image
-                    org_img = us.unnorm(samples["image"][:N])
-                    org_img = torch.clamp(org_img, 0.0, 1.0)  # random erasing makes out-of-range value
-                    mask = losses["mask"][:N].repeat(1, 3, 1, 1).cpu().float()
-                    mask = F.interpolate(mask, org_img.shape[2:]) > 0.5
-                    log_images = [org_img, mask, org_img * mask]
-                    if "neg_mask" in losses:
-                        neg_mask = losses["neg_mask"][:N, :1].repeat(1, 3, 1, 1).cpu().float()
-                        neg_mask = F.interpolate(neg_mask, org_img.shape[2:]) > 0.5
-                        log_images.append(neg_mask)
-
-                    log_images = torch.cat(log_images)
-                    grid = make_grid(log_images, nrow=N, value_range=(0, 1))
-                    cap = "\n".join([f"[{i}] {c}" for i, c in enumerate(caption[:N])])
-                    log_stat["examples"] = wandb.Image(grid, caption=cap)
-
-                wandb.log(log_stat, step=step)
-
-        if step and step % config.evaluate.eval_freq == 0:
-            if us.is_global_zero():
-                ckpt_kwargs = {
-                    "config": config,
-                    "step": step,
-                    "model": model,
-                    "optimizer": optimizer,
-                    "lr_scheduler": lr_scheduler,
-                    "scaler": scaler,
-                }
-                # save latest to "checkpoint.pth"
-                # save_checkpoint(**ckpt_kwargs)
-                # save all
-                if config.checkpoint.save_all:
-                    save_checkpoint(**ckpt_kwargs, filename=f"ckpt_{step}.pth")
-            dist.barrier()
-
-            batch_time.reset()
-            loss_meter.reset()
-            norm_meter.reset()
-            for m in log_vars_meters.values():
-                m.reset()
-
         # if step and step % config.evaluate.eval_freq == 0:
-        #     metrics = evaluate(config, model, val_loaders)
-
         #     if us.is_global_zero():
         #         ckpt_kwargs = {
         #             "config": config,
@@ -305,27 +201,26 @@ def do_training(config, model, data_loader, optimizer, lr_scheduler, scaler, val
         #             "optimizer": optimizer,
         #             "lr_scheduler": lr_scheduler,
         #             "scaler": scaler,
-        #             "metrics": metrics,
         #         }
         #         # save latest to "checkpoint.pth"
-        #         save_checkpoint(**ckpt_kwargs)
+        #         # save_checkpoint(**ckpt_kwargs)
         #         # save all
         #         if config.checkpoint.save_all:
         #             save_checkpoint(**ckpt_kwargs, filename=f"ckpt_{step}.pth")
-        #         # save best
-        #         if config.checkpoint.save_topk:
-        #             miou = metrics["val/avg_miou"]
-        #             ckpt_manager.add(miou, ckpt_kwargs, step)
         #     dist.barrier()
-
-        #     if wandb is not None:
-        #         wandb.log(metrics, step=step)
 
         #     batch_time.reset()
         #     loss_meter.reset()
         #     norm_meter.reset()
         #     for m in log_vars_meters.values():
         #         m.reset()
+
+        if 1 == 1:
+            metrics = evaluate(config, model, val_loaders)
+            dist.barrier()
+
+            if wandb is not None:
+                wandb.log(metrics, step=0)
 
 
 @torch.no_grad()

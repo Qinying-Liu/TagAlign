@@ -14,6 +14,47 @@ from models.tcl.mi import InfoNCE, ExtendedInfoNCE
 from models.tcl.pamr import PAMR
 from models.tcl.masker import Masker, Sim2Mask
 import us
+import numpy as np
+
+
+def get_similarity_map(sm, shape=None):
+
+    # min-max norm
+    sm = (sm - sm.min(1, keepdim=True)[0]) / (sm.max(1, keepdim=True)[0] - sm.min(1, keepdim=True)[0])
+
+    # # reshape
+    # side = int(sm.shape[1] ** 0.5) # square output
+    # sm = sm.reshape(sm.shape[0], side, side, -1).permute(0, 3, 1, 2)
+
+    # # interpolate
+    # sm = torch.nn.functional.interpolate(sm, shape, mode='bilinear')
+    # sm = sm.permute(0, 2, 3, 1)
+    
+    return sm
+
+
+def clip_feature_surgery(image_features, text_features, redundant_feats=None, t=2):
+
+    if redundant_feats != None:
+        similarity = image_features @ (text_features - redundant_feats).t()
+
+    else:
+        # weights to restrain influence of obvious classes on others
+        prob = image_features[:, :1, :] @ text_features.t()
+        prob = (prob * 2).softmax(-1)
+        w = prob / prob.mean(-1, keepdim=True)
+
+        # element-wise multiplied features
+        b, n_t, n_i, c = image_features.shape[0], text_features.shape[0], image_features.shape[1], image_features.shape[2]
+        feats = image_features.reshape(b, n_i, 1, c) * text_features.reshape(1, 1, n_t, c)
+        feats *= w.reshape(1, 1, n_t, 1)
+        redundant_feats = feats.mean(2, keepdim=True) # along cls dim
+        feats = feats - redundant_feats
+        
+        # sum the element-wise multiplied features as cosine similarity
+        similarity = feats.sum(-1)
+
+    return similarity
 
 
 def tv_loss(x):
@@ -34,6 +75,35 @@ class AreaTCLLoss:
 
     def __call__(self, mask: torch.Tensor):
         return (mask.mean() - self.prior).abs()
+
+
+@MODELS.register_module()
+class Classification(nn.Module):
+    def __init__(self, T_init=0.07, T_learnable=True):
+        super().__init__()
+        self.logit_scale = nn.Parameter(torch.ones([]) * np.log(1 / T_init))
+        if not T_learnable:
+            self.logit_scale.requires_grad_(False)
+
+    def forward(self, image_emb, text_emb, labels):
+        all_labels = us.gather_cat(labels) # N, K
+        labelset = torch.nonzero(all_labels.sum(dim=0))[:, 0] # K
+        text_emb = text_emb[labelset]
+        labels = labels[:, labelset]
+
+        labels = F.normalize(labels, dim=1, p=1)
+
+        image_emb = us.normalize(image_emb, dim=-1)
+        text_emb = us.normalize(text_emb, dim=-1)
+
+        logits_per_img = image_emb @ text_emb.t()
+        logit_scale = torch.clamp(self.logit_scale.exp(), max=100)
+        preds = (logits_per_img * logit_scale).softmax(dim=-1)
+        loss = -(preds.clamp(1e-7).log() * labels).sum(-1).mean()
+        # loss = F.cross_entropy(logits_per_img * logit_scale, labels)
+
+        return loss
+    
 
 
 @MODELS.register_module()
@@ -70,6 +140,11 @@ class TCL(nn.Module):
 
         self.tcl_w = tcl_w
         self.tcli_loss = InfoNCE() if tcl_w else None
+
+        self.area_w = area_w
+        self.area_loss = Classification() if area_w else None
+
+        self.label_embedding = nn.Parameter(torch.load(f'../packs/textual_label_embedding.pth', map_location='cpu').float(), requires_grad=False)
 
         # self.area_w = area_w
         # self.area_loss = AreaTCLLoss(0.4)
@@ -117,7 +192,7 @@ class TCL(nn.Module):
 
         return masked_image_emb
 
-    def forward(self, image, text):
+    def forward(self, image, text, tag):
         # key of loss should have `loss` string (key w/o `loss` is not accumulated for final loss).
         ret = {}  # losses + logs
 
@@ -149,6 +224,10 @@ class TCL(nn.Module):
         if self.tcli_loss is not None:
             tcli_loss = self.tcli_loss(image_feat, text_emb)
             ret["tcli_loss"] = tcli_loss * self.tcl_w
+
+        if self.area_loss is not None:
+            area_loss = self.area_loss(image_feat, self.label_embedding.data, tag)
+            ret["area_loss"] = area_loss * self.area_w
 
         return ret
 
@@ -228,8 +307,66 @@ class TCL(nn.Module):
 
         hard_mask, soft_mask = self.sim2mask(simmap, deterministic=deterministic)
         mask = hard_mask if hard else soft_mask
+        # mask = hard_mask
 
         return mask, simmap
+
+    # @torch.no_grad()
+    # def generate_masks(
+    #     self, image, text_emb, text_is_token=False, apply_pamr=False,
+    #     kp_w=0.3,
+    # ):
+    #     """Generate masks for each text embeddings
+
+    #     Args:
+    #         image [B, 3, H, W]
+    #         text_emb [N, C]
+
+    #     Returns:
+    #         softmask [B, N, H, W]: softmasks for each text embeddings
+    #     """
+    #     if text_is_token:
+    #         text_emb = self.clip_text_encoder(text_emb)
+
+    #     H, W = image.shape[2:]  # original image shape
+
+    #     # # pad image when (image_size % patch_size != 0)
+    #     # pad = self.compute_padsize(H, W, self.patch_size)
+    #     # if any(pad):
+    #     #     image = F.pad(image, pad)  # zero padding
+
+    #     # # padded image size
+    #     # pH, pW = image.shape[2:]
+
+    #     ############### Generate mask ################
+    #     # soft mask
+    #     clip_image_feats = self.clip_image_encoder.maskclip_forward(image, ret_feats=False)
+
+    #     h = (H - self.patch_size) // self.patch_size + 1
+    #     w = (W - self.patch_size) // self.patch_size + 1
+
+    #     clip_image_feats = us.normalize(clip_image_feats, dim=-1)  # BCHW
+    #     text_emb = us.normalize(text_emb, dim=-1)  # NC
+
+    #     simmap = clip_feature_surgery(clip_image_feats, text_emb)
+    #     # simmap = get_similarity_map(simmap[:, 1:])
+    #     simmap = simmap[:, 1:]
+
+    #     simmap = simmap.reshape(simmap.shape[0], h, w, -1).permute(0, 3, 1, 2)
+
+    #     # _, mask = self.sim2mask(simmap)
+    #     mask = torch.sigmoid(simmap)
+
+    #     # refinement
+    #     if apply_pamr:
+    #         mask = self.apply_pamr(image, mask)
+
+    #     # resize
+    #     mask = F.interpolate(mask, (H, W), mode='bilinear')  # [B, N, H, W]
+
+    #     assert mask.shape[2] == H and mask.shape[3] == W, f"shape mismatch: ({H}, {W}) / {mask.shape}"
+
+    #     return mask, simmap
     
     @torch.no_grad()
     def generate_masks(
@@ -264,8 +401,12 @@ class TCL(nn.Module):
         # image_feat = clip_image_feats[:, 0]
         clip_image_feats = clip_image_feats[:, 1:]
 
-        h = (H - self.patch_size) // 4 + 1
-        w = (H - self.patch_size) // 4 + 1
+        # h = (H - self.patch_size) // self.patch_size + 1
+        # w = (W - self.patch_size) // self.patch_size + 1
+        stride = self.clip_image_encoder.clip_visual.conv1.stride
+        h = (H - self.patch_size) // stride[0] + 1
+        w = (W - self.patch_size) // stride[1] + 1
+
         clip_image_feats = rearrange(clip_image_feats, "B (H W) C-> B C H W", H=h, W=w)
 
         mask, simmap = self.forward_seg(clip_image_feats, text_emb, hard=False)  # [B, N, H', W']

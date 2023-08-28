@@ -31,7 +31,7 @@ class TCLSegInference(EncoderDecoder):
         self.kp_w = kp_w
 
         self.model = model
-        self.model.clip_image_encoder.clip_visual.conv1.stride = (4, 4)
+        # self.model.clip_image_encoder.clip_visual.conv1.stride = (4, 4)
         self.register_buffer("text_embedding", text_embedding)
         self.with_bg = with_bg
         if self.with_bg:

@@ -7,14 +7,14 @@ data:
       - gcc12m
   train: 
       root_dir: [
-                  'pcache://vilabpcacheproxyi-pool.cz50c.alipay.com:39999/mnt/bacba1e325b67e1aa48e7ff40f7e80bf/CC12M/images',
-                  # '../data/CC4M/cc4m_imgs.zip',
+                  # 'pcache://vilabpcacheproxyi-pool.cz50c.alipay.com:39999/mnt/bacba1e325b67e1aa48e7ff40f7e80bf/CC12M/images',
+                  '../data/CC4M/cc4m_imgs.zip',
                 ]
       meta_file: [
-                  '/input/lqy/tcl/data/CC12M/CC12M_meta.csv',
+                  '../data/CC4M/cc4m_revised.json',
                 ]
       # read_from: petrel
-      read_from: dir
+      read_from: zip
       use_dali: True
       # batch_size: 256
       input_size: 224
@@ -27,6 +27,9 @@ data:
       transforms:
           type: STANDARD
       fseek: False
+    
+      tag_file: '../data/CC4M/CC4M_tags_index.json'
+      num_tags: 4585
       
 
 model:
@@ -43,32 +46,33 @@ model:
       kernel_size: 3
       act: gelu
       norm: ln
-    sim2mask:
-      init_w: 10.0
-      init_b: -2.5
-      gumbel_tau: 1.0
-      learnable: true
     # sim2mask:
-    #   init_w: 1.0
-    #   init_b: 0.0
+    #   init_w: 10.0
+    #   init_b: -2.5
     #   gumbel_tau: 1.0
-    #   learnable: false
+    #   learnable: true
+    sim2mask:
+      init_w: 1.0
+      init_b: 0.0
+      gumbel_tau: 1.0
+      learnable: false
 
   # tcl
-  tcl_w: 1.0 # contrastive loss
-  tv_w: 1.0 # patch contrastive loss
-  area_w: 0.4
+  tcl_w: 0.0 # contrastive loss
+  tv_w: 0.0 # patch contrastive loss
+  area_w: 1.0
 
 train:
-  total_steps: 50000
-  warmup_steps: 15000
+  total_steps: 25000
+  warmup_steps: 0
   ust_steps: 30000  # train decoder only in this steps
-  base_lr: 3e-4
-  weight_decay: 0.05
-  min_lr: 4e-5
-  clip_grad: 5.0
+  base_lr: 5e-4
+  weight_decay: 0.2
+  min_lr: 0
+  clip_grad: 2.0
   optimizer:
     eps: 1e-6
+    betas: [0.9, 0.98]
 
 evaluate:
   pamr: true

@@ -6,14 +6,15 @@ evaluate:
   eval_only: true
   template: custom
   task:
-    - voc
     - voc20
-    - context
-    - context59
-    - coco_stuff
-    - coco_object
-    - cityscapes
-    - ade20k
+    # - voc
+    # - voc20
+    # - context
+    # - context59
+    # - coco_stuff
+    # - coco_object
+    # - cityscapes
+    # - ade20k
 
   # training splits
   t_voc20: segmentation/configs/_base_/datasets/t_pascal_voc12_20.py

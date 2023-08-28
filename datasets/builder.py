@@ -77,10 +77,12 @@ def worker_init_fn(worker_id, num_workers, rank, seed):
 def collate_fn(batch):  
     img = torch.stack([b['image'] for b in batch])
     caption = torch.stack([b['caption'] for b in batch])
+    tag_label = torch.stack([b['tag_label'] for b in batch])
         
     return {    
         'image':img,
         'caption':caption,
+        'tag_label':tag_label,
     }
 
 def build_loader(config):
@@ -115,6 +117,8 @@ def build_dataset(config):
     dataset = ClipDataset(
         root_dir=config[split]['root_dir'],
         meta_file=config[split]['meta_file'],
+        tag_file=config[split]['tag_file'],
+        num_tags=config[split]['num_tags'],
         img_transform=img_transform,
         text_transform=text_transform,
         read_from=config[split]['read_from'],

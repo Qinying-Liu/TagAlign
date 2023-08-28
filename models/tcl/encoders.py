@@ -47,9 +47,22 @@ class Embedding(nn.Module):
             nn.ReLU(inplace=True), 
             nn.Linear(self.in_dim, self.out_dim))
         self.residual_branch = nn.Linear(self.in_dim, self.out_dim)
+        self._initialize_weights()
+
+    def _initialize_weights(self):
+        for m in self.main_branch.modules():
+            if isinstance(m, nn.Linear):
+                nn.init.eye_(m.weight)
+                if m.bias is not None:
+                    nn.init.zeros_(m.bias)
+        for m in self.residual_branch.modules():
+            if isinstance(m, nn.Linear):
+                nn.init.eye_(m.weight)
+                if m.bias is not None:
+                    nn.init.zeros_(m.bias)
 
     def forward(self, x):
-        return self.main_branch(x) + self.residual_branch(x)
+        return 0.5 * self.main_branch(x) + 0.5 * self.residual_branch(x)
 
 
 @MODELS.register_module()
@@ -71,9 +84,11 @@ class CLIPImageFeatureEncoder(FeatureEncoder):
         # move both LN & proj
         # self.clip_proj = LNProjLayer(clip_visual.ln_post, clip_visual.proj)
 
-        self.clip_proj = Embedding(clip_visual.width, clip_visual.output_dim)
-        clip_visual.ln_post = nn.Identity()
-        clip_visual.proj = None
+        # self.clip_proj = Embedding(clip_visual.width, clip_visual.output_dim)
+        self.clip_proj = Embedding(clip_visual.output_dim, clip_visual.output_dim)
+        # clip_visual.ln_post = nn.Identity()
+        # clip_visual.proj = None
+        # self.clip_proj = nn.Identity()
 
         self.clip_visual = clip_visual
         self.patch_size = self.clip_visual.patch_size

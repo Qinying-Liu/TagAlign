@@ -6,6 +6,7 @@
 # Copyright (c) 2021-22, NVIDIA Corporation & affiliates. All Rights Reserved.
 # ------------------------------------------------------------------------------
 import mmcv
+import yaml
 import torch
 from mmseg.datasets import build_dataloader, build_dataset
 from mmseg.datasets.pipelines import Compose
