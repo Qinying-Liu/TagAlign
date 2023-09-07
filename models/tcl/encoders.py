@@ -47,7 +47,7 @@ class Embedding(nn.Module):
             nn.ReLU(inplace=True), 
             nn.Linear(self.in_dim, self.out_dim))
         self.residual_branch = nn.Linear(self.in_dim, self.out_dim)
-        self._initialize_weights()
+        # self._initialize_weights() 
 
     def _initialize_weights(self):
         for m in self.main_branch.modules():
@@ -110,22 +110,18 @@ class CLIPImageFeatureEncoder(FeatureEncoder):
             spatial=spatial,
             ignore_last_attn=ignore_last_attn
         )  # [B, L, C]
-
         # if spatial:
         #     clip_features = x
         #     _B, L, _C = clip_features.size()
         #     h = H // self.patch_size
         #     w = W // self.patch_size
         #     assert h*w == L-1, f"x {x.shape}, L {L}, h {h}, w{w}"
-
         #     if H % self.patch_size or W % self.patch_size:
         #         logger = get_logger()
         #         logger.error(
         #             f"!!! Input image {x.shape} does not fit to patch size {self.patch_size} !!!"
         #         )
-
         #     x = rearrange(clip_features[:, 1:], "B (H W) C -> B C H W", H=h, W=w)
-
         return x
 
     def clip_forward(self, x, ret_feats=False):

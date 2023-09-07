@@ -11,7 +11,7 @@ data:
                   # '../data/CC4M/cc4m_imgs.zip',
                 ]
       meta_file: [
-                  '/input/lqy/tcl/data/CC12M/CC12M_meta.csv',
+                  '../data/CC12M/CC12M_meta_selected.csv',
                 ]
       # read_from: petrel
       read_from: dir
@@ -27,6 +27,8 @@ data:
       transforms:
           type: STANDARD
       fseek: False
+      tag_file: '../data/CC12M/CC12M_meta_nouns_index.json'
+      num_tags: 10000
       
 
 model:
@@ -45,7 +47,7 @@ model:
       norm: ln
     sim2mask:
       init_w: 10.0
-      init_b: -2.5
+      init_b: 0
       gumbel_tau: 1.0
       learnable: true
     # sim2mask:
@@ -55,14 +57,14 @@ model:
     #   learnable: false
 
   # tcl
-  tcl_w: 1.0 # contrastive loss
-  tv_w: 1.0 # patch contrastive loss
-  area_w: 0.4
+  tcl_w: 0.0 # contrastive loss
+  tv_w: 0.0 # patch contrastive loss
+  area_w: 0.0
 
 train:
-  total_steps: 50000
-  warmup_steps: 15000
   ust_steps: 30000  # train decoder only in this steps
+  total_steps: 25001
+  warmup_steps: 25000
   base_lr: 3e-4
   weight_decay: 0.05
   min_lr: 4e-5
@@ -75,8 +77,8 @@ evaluate:
   bg_thresh: 0.4
   kp_w: 0.3
 
-  eval_freq: 5000
-  template: custom
+  eval_freq: 1000
+  template: custom #identity_template # simple # custom # custom # full_imagenet_templates # simple
   task:
     - t_voc20
     # - t_context59

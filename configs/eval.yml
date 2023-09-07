@@ -4,7 +4,7 @@ evaluate:
   kp_w: 0.3
 
   eval_only: true
-  template: custom
+  template: simple # identity_template # simple # custom
   task:
     - voc20
     # - voc

@@ -7,14 +7,14 @@ data:
       - gcc12m
   train: 
       root_dir: [
-                  # 'pcache://vilabpcacheproxyi-pool.cz50c.alipay.com:39999/mnt/bacba1e325b67e1aa48e7ff40f7e80bf/CC12M/images',
-                  '../data/CC4M/cc4m_imgs.zip',
+                  'pcache://vilabpcacheproxyi-pool.cz50c.alipay.com:39999/mnt/bacba1e325b67e1aa48e7ff40f7e80bf/CC12M/images',
+                  # '../data/CC4M/cc4m_imgs.zip',
                 ]
       meta_file: [
                   '../data/CC4M/cc4m_revised.json',
                 ]
       # read_from: petrel
-      read_from: zip
+      read_from: dir
       use_dali: True
       # batch_size: 256
       input_size: 224
@@ -68,7 +68,7 @@ train:
   ust_steps: 30000  # train decoder only in this steps
   base_lr: 5e-4
   weight_decay: 0.2
-  min_lr: 0
+  min_lr: 6e-4
   clip_grad: 2.0
   optimizer:
     eps: 1e-6

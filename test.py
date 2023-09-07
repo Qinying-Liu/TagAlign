@@ -137,8 +137,8 @@ def train(cfg):
 
     scaler = torch.cuda.amp.GradScaler(enabled=cfg.train.fp16)
 
-    # if cfg.checkpoint.resume:
-    #     load_checkpoint(cfg, model.module, optimizer, lr_scheduler, scaler)
+    if cfg.checkpoint.resume:
+        load_checkpoint(cfg, model.module, optimizer, lr_scheduler, scaler)
 
     if cfg.evaluate.eval_only:
         res = evaluate(cfg, model, val_loaders)

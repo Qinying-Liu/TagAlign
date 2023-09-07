@@ -56,7 +56,7 @@ def load_checkpoint(config, model, optimizer, lr_scheduler, scaler):
             for key in msg.unexpected_keys:
                 logger.info(f"\t {key}")
 
-            raise ValueError("Unexpected keys are found in the checkpoint.")
+            # raise ValueError("Unexpected keys are found in the checkpoint.")
         logger.info("#" * 80)
 
     metrics = defaultdict(float)

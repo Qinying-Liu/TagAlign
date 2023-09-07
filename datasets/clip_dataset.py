@@ -28,7 +28,7 @@ from .zip_reader import ZipReader
 from zipfile import ZipFile, BadZipFile
 import multiprocessing
 import csv
-# from pcache_fileio import fileio
+from pcache_fileio import fileio
 
 lemmatizer = WordNetLemmatizer()
 
@@ -124,7 +124,12 @@ class ClipDataset(BaseDataset):
         self.tokenizer = SimpleTokenizer()
 
         with open(tag_file, 'r') as f:
-            self.meta_tag = json.load(f) 
+            meta_tag = json.load(f) 
+            data = {}
+            for k, v in meta_tag.items():
+                data[osp.basename(k)] = v
+            self.meta_tag = data
+
         self.num_tags = num_tags
 
         self.metas = []
@@ -144,17 +149,30 @@ class ClipDataset(BaseDataset):
                 self.line_offsets.append(line_offset)
 
         else:
-           ### read from local file and load all metafile info ###
-           for rd, each_meta_file in zip(root_dir, meta_file):
+            ### read from local file and load all metafile info ###
+            for rd, each_meta_file in zip(root_dir, meta_file):
+                print(each_meta_file)
                 with open(each_meta_file) as f:
-                    lines = f.readlines()
-                self.num += len(lines)
+                    # lines = f.readlines()
+                    csv_reader = csv.reader(f)
+                    next(csv_reader)
+                    for line in csv_reader:
+                        filename = osp.join(rd, osp.basename(line[0]))
+                        info = {'filename':filename, 'caption':line[1]}
+                        self.metas.append(info)
+                        self.num += 1
 
-                for line in lines:
-                    info = json.loads(line)
-                    filename = osp.join(rd, info['filename'])
-                    info['filename'] = filename
-                    self.metas.append(info)
+        #   ### read from local file and load all metafile info ###
+        #    for rd, each_meta_file in zip(root_dir, meta_file):
+        #         with open(each_meta_file) as f:
+        #             lines = f.readlines()
+        #         self.num += len(lines)
+
+        #         for line in lines:
+        #             info = json.loads(line)
+        #             filename = osp.join(rd, info['filename'])
+        #             info['filename'] = filename
+        #             self.metas.append(info)
 
         super(ClipDataset, self).__init__(root_dir=root_dir,
                                           meta_file=meta_file,
@@ -226,6 +244,7 @@ class ClipDataset(BaseDataset):
         filename = curr_meta['filename']
 
         tag_label = self.meta_tag[os.path.basename(filename)]
+        # tag_label = self.meta_tag[filename]
         tag_label_embedding = torch.zeros(self.num_tags, dtype=torch.float)
         if len(tag_label) > 0:
             tag_label_embedding[tag_label] = 1 
