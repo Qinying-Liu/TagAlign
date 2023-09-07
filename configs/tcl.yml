@@ -63,7 +63,7 @@ model:
 
 train:
   ust_steps: 30000  # train decoder only in this steps
-  total_steps: 25001
+  total_steps: 50001
   warmup_steps: 25000
   base_lr: 3e-4
   weight_decay: 0.05
