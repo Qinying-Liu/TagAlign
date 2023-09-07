@@ -125,6 +125,7 @@ class AsymmetricLoss(nn.Module):
 
         return -loss.mean()
 
+
 @MODELS.register_module()
 class Classification(nn.Module):
     # def __init__(self, T_init=0.07, T_learnable=True):
@@ -151,26 +152,17 @@ class Classification(nn.Module):
         self.binary_cross_entropy_with_logits = nn.BCEWithLogitsLoss()
         # self.tagging_loss_function = AsymmetricLoss(gamma_neg=7, gamma_pos=0, clip=0.05)
 
-    def forward(self, image_emb, image_emb_v1, text_emb, labels):
+    def forward(self, image_emb, text_emb, labels):
         # all_labels = us.gather_cat(labels) # N, K
         # labelset = torch.nonzero(all_labels.sum(dim=0))[:, 0] # K
         # text_emb = text_emb[labelset]
         # labels = labels[:, labelset]
         image_emb = us.normalize(image_emb, dim=-1)
-        image_emb_v1 = us.normalize(image_emb_v1, dim=-1)
         text_emb = us.normalize(text_emb, dim=-1)
         logits_per_img = image_emb @ text_emb.t()
-        logits_per_img_v1 = image_emb_v1 @ text_emb.t()
         # logit_scale = torch.clamp(self.logit_scale.exp(), max=100)
         logits_per_img = logits_per_img * self.w + self.b
-        logits_per_img_v1 = logits_per_img_v1 * self.w + self.b
         loss = self.binary_cross_entropy_with_logits(logits_per_img, labels) 
-        loss_v1 = self.binary_cross_entropy_with_logits(logits_per_img_v1, labels) 
-        # print('0 is', torch.sigmoid(logits_per_img))
-        # print('1 is', torch.sigmoid(logits_per_img_v1))
-        # print('2 is', loss)
-        # print('3 is', loss_v1)
-        # exit()
         # loss = self.tagging_loss_function(logits_per_img, labels) 
         # preds = (logits_per_img * logit_scale).softmax(dim=-1)
         # labels = F.normalize(labels, dim=1, p=1)
@@ -274,7 +266,7 @@ class TCL(nn.Module):
         clip_image_feats = self.clip_image_encoder.maskclip_forward(image, ret_feats=False)
         image_feat = clip_image_feats[:, 0]
         clip_image_feats = clip_image_feats[:, 1:]
-        image_feat_v1 = clip_image_feats.mean(dim=1)
+        image_feat = clip_image_feats.mean(dim=1)
         with torch.no_grad():
             text_emb = self.clip_text_encoder(text)
 
@@ -301,7 +293,7 @@ class TCL(nn.Module):
             ret["tcli_loss"] = tcli_loss * self.tcl_w
 
         if self.area_loss is not None:
-            area_loss = self.area_loss(image_feat, image_feat_v1, self.label_embedding.data, tag)
+            area_loss = self.area_loss(image_feat, self.label_embedding.data, tag)
             ret["area_loss"] = area_loss * self.area_w
 
         return ret
@@ -379,10 +371,9 @@ class TCL(nn.Module):
 
         simmap = torch.einsum("b c h w, n c -> b n h w", image_emb, text_emb)
 
-        # hard_mask, soft_mask = self.sim2mask(simmap, deterministic=deterministic)
-        # mask = hard_mask if hard else soft_mask
-        # # mask = hard_mask
-        mask = torch.sigmoid(simmap * 10 - 2.5)
+        hard_mask, soft_mask = self.sim2mask(simmap, deterministic=deterministic)
+        mask = hard_mask if hard else soft_mask
+        # mask = hard_mask
 
         return mask, simmap
 
