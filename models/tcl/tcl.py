@@ -127,6 +127,22 @@ class AsymmetricLoss(nn.Module):
 
 
 @MODELS.register_module()
+class FocalLoss(nn.Module):
+    def __init__(self, alpha=0.25, gamma=2):
+        super().__init__()        
+        self.alpha = alpha
+        self.gamma = gamma
+
+    def forward(self, pred, target):
+            pred_sigmoid = pred.sigmoid()
+            target = target.type_as(pred)
+            pt = (1 - pred_sigmoid) * target + pred_sigmoid * (1 - target)
+            focal_weight = (self.alpha * target + (1 - self.alpha) * (1 - target)) * pt.pow(self.gamma)
+            loss = F.binary_cross_entropy_with_logits(pred, target, reduction='none') * focal_weight
+            return loss
+
+
+@MODELS.register_module()
 class Classification(nn.Module):
     # def __init__(self, T_init=0.07, T_learnable=True):
     #     super().__init__()
@@ -149,8 +165,9 @@ class Classification(nn.Module):
             self.w = init_w
             self.b = init_b
         
-        self.binary_cross_entropy_with_logits = nn.BCEWithLogitsLoss()
+        # self.binary_cross_entropy_with_logits = nn.BCEWithLogitsLoss()
         # self.tagging_loss_function = AsymmetricLoss(gamma_neg=7, gamma_pos=0, clip=0.05)
+        self.focalloss = FocalLoss(alpha=0.25, gamma=2)
 
     def forward(self, image_emb, text_emb, labels):
         # all_labels = us.gather_cat(labels) # N, K
