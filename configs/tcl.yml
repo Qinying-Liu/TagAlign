@@ -65,7 +65,7 @@ train:
   ust_steps: 30000  # train decoder only in this steps
   total_steps: 50001
   warmup_steps: 25000
-  base_lr: 3e-4
+  base_lr: 1e-3
   weight_decay: 0.05
   min_lr: 4e-5
   clip_grad: 5.0
