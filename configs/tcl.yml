@@ -7,8 +7,8 @@ data:
       - gcc12m
   train: 
       root_dir: [
-                  'pcache://vilabpcacheproxyi-pool.cz50c.alipay.com:39999/mnt/bacba1e325b67e1aa48e7ff40f7e80bf/CC12M/images',
-                  # '../data/CC4M/cc4m_imgs.zip',
+                 'pcache://vilabpcacheproxyi-pool.cz50c.alipay.com:39999/mnt/bacba1e325b67e1aa48e7ff40f7e80bf/CC12M/images',
+                #  '../data/CC4M/cc4m_imgs.zip',
                 ]
       meta_file: [
                   '../data/CC12M/CC12M_meta_selected.csv',

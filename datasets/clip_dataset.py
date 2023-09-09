@@ -28,7 +28,7 @@ from .zip_reader import ZipReader
 from zipfile import ZipFile, BadZipFile
 import multiprocessing
 import csv
-from pcache_fileio import fileio
+# from pcache_fileio import fileio
 
 lemmatizer = WordNetLemmatizer()
 
@@ -263,6 +263,8 @@ class ClipDataset(BaseDataset):
                 
             if self.read_from == 'dir':
                 ### load from dir ###
+                if not osp.isfile(filename):
+                    filename = '../0000000.jpg'
                 img = Image.open(filename).convert('RGB')
             elif self.read_from == 'zip':
                 proc = multiprocessing.current_process()

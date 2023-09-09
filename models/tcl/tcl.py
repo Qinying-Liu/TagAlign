@@ -13,6 +13,7 @@ from models.tcl.encoders import CLIPImageFeatureEncoder
 from models.tcl.mi import InfoNCE, ExtendedInfoNCE
 from models.tcl.pamr import PAMR
 from models.tcl.masker import Masker, Sim2Mask
+from collections import OrderedDict
 import us
 import numpy as np
 
@@ -177,13 +178,13 @@ class Classification(nn.Module):
         # labels = labels[:, labelset]
         image_emb = us.normalize(image_emb, dim=-1) # N, T, D
         text_emb = us.normalize(text_emb, dim=-1)
-        # logits_per_img = image_emb @ text_emb.t()
-        logits_per_img = torch.einsum('ntd,md->ntm', image_emb, text_emb)
+        logits_per_img = image_emb @ text_emb.t()
+        # logits_per_img = torch.einsum('ntd,md->ntm', image_emb, text_emb)
         # logit_scale = torch.clamp(self.logit_scale.exp(), max=100)
         logits_per_img = logits_per_img * self.w + self.b
-        logits_per_img = torch.sigmoid(logits_per_img).mean(dim=1)
-        loss = F.binary_cross_entropy(logits_per_img, labels)
-        # loss = self.binary_cross_entropy_with_logits(logits_per_img, labels) 
+        # logits_per_img = torch.sigmoid(logits_per_img).mean(dim=1)
+        # loss = F.binary_cross_entropy(logits_per_img, labels)
+        loss = self.binary_cross_entropy_with_logits(logits_per_img, labels) 
         # loss = self.tagging_loss_function(logits_per_img, labels) 
         # loss = self.focalloss(logits_per_img, labels) 
         # preds = (logits_per_img * logit_scale).softmax(dim=-1)
@@ -212,6 +213,17 @@ class TCL(nn.Module):
         )
         self.patch_size = self.clip_image_encoder.patch_size
 
+        image_proj = self.clip_image_encoder.clone_proj()
+
+        output_dim = self.clip_image_encoder.clip_visual.output_dim if self.clip_image_encoder.clip_visual.proj is not None else self.clip_image_encoder.clip_visual.embed_dim
+        decoder = masker['decoder']
+        decoder["C"] = output_dim
+        decoder = MODELS.build(decoder)
+        decoder = nn.Sequential(OrderedDict([
+            ("decoder", decoder),
+            ("image_proj", image_proj)
+        ]))
+        self.decoder = decoder
         # masker_backbone = self.clip_image_encoder.clone_masker_backbone(ie_freeze)
         # masker_backbone.patch_size = self.patch_size
         # image_proj = self.clip_image_encoder.clone_proj()
@@ -248,7 +260,7 @@ class TCL(nn.Module):
         # CLIP encoders are always frozen
         self.clip_image_encoder.eval()
         self.clip_text_encoder.eval()
-        self.clip_image_encoder.clip_proj.train()
+        self.decoder.train()
 
 
     def set_train(self, decoder_only: bool, config):
@@ -261,7 +273,7 @@ class TCL(nn.Module):
         # freeze clip encoders
         self.clip_image_encoder.requires_grad_(False)
         self.clip_text_encoder.requires_grad_(False)
-        self.clip_image_encoder.clip_proj.requires_grad_(True)
+        self.decoder.requires_grad_(True)
 
 
     def masked_pool(self, spatial_image_emb, mask, eps=1e-6):
@@ -284,32 +296,24 @@ class TCL(nn.Module):
         # key of loss should have `loss` string (key w/o `loss` is not accumulated for final loss).
         ret = {}  # losses + logs
 
+        H, W = image.shape[-2:]
+        h = H // self.patch_size
+        w = W // self.patch_size
+
         # forward CLIP & extract features
         clip_image_feats = self.clip_image_encoder.maskclip_forward(image, ret_feats=False)
-        image_feat = clip_image_feats[:, 0]
-        clip_image_feats = clip_image_feats[:, 1:]
-        # image_feat = clip_image_feats.mean(dim=1)
-        image_feat = clip_image_feats
+
+        clip_image_feats = rearrange(clip_image_feats[:, 1:], "B (H W) C -> B C H W", H=h, W=w)
+        clip_image_feats = self.decoder(clip_image_feats)
+
+        image_feat = clip_image_feats.mean(dim=-1).mean(dim=-1)
+
         with torch.no_grad():
             text_emb = self.clip_text_encoder(text)
-
-        # if self.area_w:
-        #     pos_area_loss = self.area_loss(pos_mask)
-        #     ret["area_loss"] = pos_area_loss * self.area_w
-
-        #     neg_area_loss = self.neg_area_loss(neg_mask)
-        #     ret["neg_area_loss"] = neg_area_loss * self.area_w
 
         if self.tv_loss is not None:
             tv_loss = self.tv_loss(clip_image_feats, text_emb)  # ExtendedInfoNCE
             ret["tv_loss"] = tv_loss * self.tv_w
-
-        # if self.tv_w:
-        #     tv_img_loss = tv_loss(s1_image_emb)
-        #     ret["tv_img_loss"] = tv_img_loss * self.tv_w
-
-        #     tv_mask_loss = tv_loss(mask)
-        #     ret["tv_mask_loss"] = tv_mask_loss * self.tv_w
 
         if self.tcli_loss is not None:
             tcli_loss = self.tcli_loss(image_feat, text_emb)

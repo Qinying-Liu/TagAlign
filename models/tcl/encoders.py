@@ -82,13 +82,12 @@ class CLIPImageFeatureEncoder(FeatureEncoder):
 
         # build clip_proj (ln_post, proj)
         # move both LN & proj
-        # self.clip_proj = LNProjLayer(clip_visual.ln_post, clip_visual.proj)
+        self.clip_proj = LNProjLayer(clip_visual.ln_post, clip_visual.proj)
 
         # self.clip_proj = Embedding(clip_visual.width, clip_visual.output_dim)
-        self.clip_proj = Embedding(clip_visual.output_dim, clip_visual.output_dim)
-        # clip_visual.ln_post = nn.Identity()
-        # clip_visual.proj = None
-        # self.clip_proj = nn.Identity()
+        # self.clip_proj = Embedding(clip_visual.output_dim, clip_visual.output_dim)
+        clip_visual.ln_post = nn.Identity()
+        clip_visual.proj = None
 
         self.clip_visual = clip_visual
         self.patch_size = self.clip_visual.patch_size
@@ -134,7 +133,7 @@ class CLIPImageFeatureEncoder(FeatureEncoder):
     def maskclip_forward(self, x, ret_feats=False):
         with torch.no_grad():
             x = self.forward(x, spatial=True, ignore_last_attn=False, ret_feats=ret_feats)
-        return self.clip_proj(x)
+        return x
 
     def tcl_forward(self, x, ret_feats=False):
         """This function is same as `forward()` itself.
