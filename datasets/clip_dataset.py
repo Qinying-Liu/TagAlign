@@ -28,7 +28,7 @@ from .zip_reader import ZipReader
 from zipfile import ZipFile, BadZipFile
 import multiprocessing
 import csv
-# from pcache_fileio import fileio
+from pcache_fileio import fileio
 
 lemmatizer = WordNetLemmatizer()
 
