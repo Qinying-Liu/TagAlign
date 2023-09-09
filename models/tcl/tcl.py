@@ -166,9 +166,9 @@ class Classification(nn.Module):
             self.w = init_w
             self.b = init_b
         
-        # self.binary_cross_entropy_with_logits = nn.BCEWithLogitsLoss()
+        self.binary_cross_entropy_with_logits = nn.BCEWithLogitsLoss()
         # self.tagging_loss_function = AsymmetricLoss(gamma_neg=7, gamma_pos=0, clip=0.05)
-        self.focalloss = FocalLoss(alpha=0.75, gamma=0.1)
+        # self.focalloss = FocalLoss(alpha=0.75, gamma=0.1)
 
     def forward(self, image_emb, text_emb, labels):
         # all_labels = us.gather_cat(labels) # N, K
@@ -180,9 +180,9 @@ class Classification(nn.Module):
         logits_per_img = image_emb @ text_emb.t()
         # logit_scale = torch.clamp(self.logit_scale.exp(), max=100)
         logits_per_img = logits_per_img * self.w + self.b
-        # loss = self.binary_cross_entropy_with_logits(logits_per_img, labels) 
+        loss = self.binary_cross_entropy_with_logits(logits_per_img, labels) 
         # loss = self.tagging_loss_function(logits_per_img, labels) 
-        loss = self.focalloss(logits_per_img, labels) 
+        # loss = self.focalloss(logits_per_img, labels) 
         # preds = (logits_per_img * logit_scale).softmax(dim=-1)
         # labels = F.normalize(labels, dim=1, p=1)
         # loss = -(preds.clamp(1e-7).log() * labels).sum(-1).mean()
