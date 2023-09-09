@@ -175,12 +175,15 @@ class Classification(nn.Module):
         # labelset = torch.nonzero(all_labels.sum(dim=0))[:, 0] # K
         # text_emb = text_emb[labelset]
         # labels = labels[:, labelset]
-        image_emb = us.normalize(image_emb, dim=-1)
+        image_emb = us.normalize(image_emb, dim=-1) # N, T, D
         text_emb = us.normalize(text_emb, dim=-1)
-        logits_per_img = image_emb @ text_emb.t()
+        # logits_per_img = image_emb @ text_emb.t()
+        logits_per_img = torch.einsum('ntd,md->ntm', image_emb, text_emb)
         # logit_scale = torch.clamp(self.logit_scale.exp(), max=100)
         logits_per_img = logits_per_img * self.w + self.b
-        loss = self.binary_cross_entropy_with_logits(logits_per_img, labels) 
+        logits_per_img = torch.sigmoid(logits_per_img).mean(dim=1)
+        loss = F.binary_cross_entropy(logits_per_img, labels)
+        # loss = self.binary_cross_entropy_with_logits(logits_per_img, labels) 
         # loss = self.tagging_loss_function(logits_per_img, labels) 
         # loss = self.focalloss(logits_per_img, labels) 
         # preds = (logits_per_img * logit_scale).softmax(dim=-1)
@@ -285,7 +288,8 @@ class TCL(nn.Module):
         clip_image_feats = self.clip_image_encoder.maskclip_forward(image, ret_feats=False)
         image_feat = clip_image_feats[:, 0]
         clip_image_feats = clip_image_feats[:, 1:]
-        image_feat = clip_image_feats.mean(dim=1)
+        # image_feat = clip_image_feats.mean(dim=1)
+        image_feat = clip_image_feats
         with torch.no_grad():
             text_emb = self.clip_text_encoder(text)
 
