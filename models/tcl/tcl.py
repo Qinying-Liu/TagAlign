@@ -168,7 +168,7 @@ class Classification(nn.Module):
         
         # self.binary_cross_entropy_with_logits = nn.BCEWithLogitsLoss()
         # self.tagging_loss_function = AsymmetricLoss(gamma_neg=7, gamma_pos=0, clip=0.05)
-        self.focalloss = FocalLoss(alpha=0.5, gamma=0.5)
+        self.focalloss = FocalLoss(alpha=0.75, gamma=0.2)
 
     def forward(self, image_emb, text_emb, labels):
         # all_labels = us.gather_cat(labels) # N, K
