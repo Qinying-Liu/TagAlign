@@ -19,7 +19,7 @@ class GDecoder(nn.Module):
                     C, C,
                     kernel_size=kernel_size,
                     padding=kernel_size//2,
-                    upsample=True,
+                    upsample=False,
                     norm=norm,
                     activ=act,
                     double=double,
