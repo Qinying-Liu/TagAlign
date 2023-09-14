@@ -213,17 +213,29 @@ class TCL(nn.Module):
         )
         self.patch_size = self.clip_image_encoder.patch_size
 
+        self.mask_emb = nn.Parameter(torch.randn((1, 1, self.clip_image_encoder.clip_visual.embed_dim)), requires_grad=True)
+
         image_proj = self.clip_image_encoder.clone_proj()
 
         output_dim = self.clip_image_encoder.clip_visual.output_dim if self.clip_image_encoder.clip_visual.proj is not None else self.clip_image_encoder.clip_visual.embed_dim
-        decoder = masker['decoder']
-        decoder["C"] = output_dim
-        decoder = MODELS.build(decoder)
+        decoder_cfg = masker['decoder']
+        decoder_cfg["C"] = output_dim
+        decoder = MODELS.build(decoder_cfg)
         decoder = nn.Sequential(OrderedDict([
             ("decoder", decoder),
             ("image_proj", image_proj)
         ]))
         self.decoder = decoder
+
+        image_proj_bar = self.clip_image_encoder.clone_proj()
+
+        decoder_bar = MODELS.build(decoder_cfg)
+        decoder_bar = nn.Sequential(OrderedDict([
+            ("decoder", decoder_bar),
+            ("image_proj", image_proj_bar)
+        ]))
+        self.decoder_bar = decoder_bar
+
         # masker_backbone = self.clip_image_encoder.clone_masker_backbone(ie_freeze)
         # masker_backbone.patch_size = self.patch_size
         # image_proj = self.clip_image_encoder.clone_proj()
@@ -261,6 +273,8 @@ class TCL(nn.Module):
         self.clip_image_encoder.eval()
         self.clip_text_encoder.eval()
         self.decoder.train()
+        self.decoder_bar.train()
+        self.mask_emb.requires_grad_(True)
 
 
     def set_train(self, decoder_only: bool, config):
@@ -274,6 +288,8 @@ class TCL(nn.Module):
         self.clip_image_encoder.requires_grad_(False)
         self.clip_text_encoder.requires_grad_(False)
         self.decoder.requires_grad_(True)
+        self.decoder_bar.requires_grad_(True)
+        self.mask_emb.requires_grad_(True)
 
 
     def masked_pool(self, spatial_image_emb, mask, eps=1e-6):
