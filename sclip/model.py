@@ -282,7 +282,7 @@ class VisionTransformer(nn.Module):
         self.ln_post = LayerNorm(width)
         self.proj = nn.Parameter(scale * torch.randn(width, output_dim))
 
-    def forward(self, x: torch.Tensor, spatial: bool = False, ignore_last_attn=False):
+    def forward(self, x: torch.Tensor, spatial: bool = False, ignore_last_attn=False, mask_emb=None):
         """
         Args:
             spatial: return spatial feature map [N, L, D]
@@ -292,6 +292,45 @@ class VisionTransformer(nn.Module):
         H, W = x.shape[2:]
         x = x.reshape(x.shape[0], x.shape[1], -1)  # shape = [*, width, grid ** 2]
         x = x.permute(0, 2, 1)  # shape = [*, grid ** 2, width]
+        if mask_emb:
+            mask = self.random_masking(x, 0.5)
+            mask_emb = mask_emb.expand_as(x)
+            x_bar = mask * mask_emb + (1 - mask) * x
+            
+            x_bar = torch.cat([self.class_embedding.to(x.dtype) + torch.zeros(x_bar.shape[0], 1, x_bar.shape[-1], dtype=x_bar.dtype, device=x_bar.device), x], dim=1)  # shape = [*, grid ** 2 + 1, width]
+
+            pos_emb = interpolate_pos_emb(self.positional_embedding, H, W).to(x_bar.dtype)
+            x_bar = x_bar + pos_emb
+            x_bar = self.ln_pre(x_bar)
+            x_bar = x_bar.permute(1, 0, 2)  # NLD -> LND
+            x_bar = self.transformer(x_bar, ignore_last_attn=ignore_last_attn)
+            x_bar = x_bar.permute(1, 0, 2)  # LND -> NLD
+            
+            if spatial:
+                x_bar = self.ln_post(x_bar) # N, L D
+            else:
+                x_bar = self.ln_post(x_bar[:, 0, :]) # N
+            
+            if self.proj is not None:
+                x_bar = x_bar @ self.proj
+
+            x = torch.cat([self.class_embedding.to(x.dtype) + torch.zeros(x.shape[0], 1, x.shape[-1], dtype=x.dtype, device=x.device), x], dim=1)  # shape = [*, grid ** 2 + 1, width]
+            x = x + pos_emb
+            x = self.ln_pre(x)
+            x = x.permute(1, 0, 2)  # NLD -> LND
+            x = self.transformer(x, ignore_last_attn=ignore_last_attn)
+            x = x.permute(1, 0, 2)  # LND -> NLD
+            
+            if spatial:
+                x = self.ln_post(x) # N, L D
+            else:
+                x = self.ln_post(x[:, 0, :]) # N
+            
+            if self.proj is not None:
+                x = x @ self.proj
+            return x, x_bar, mask
+
+
         x = torch.cat([self.class_embedding.to(x.dtype) + torch.zeros(x.shape[0], 1, x.shape[-1], dtype=x.dtype, device=x.device), x], dim=1)  # shape = [*, grid ** 2 + 1, width]
         pos_emb = interpolate_pos_emb(self.positional_embedding, H, W).to(x.dtype)
         x = x + pos_emb
@@ -309,6 +348,34 @@ class VisionTransformer(nn.Module):
         if self.proj is not None:
             x = x @ self.proj
         return x
+    
+    @torch.no_grad()
+    def random_masking(self, x, mask_ratio):
+        """
+        Perform per-sample random masking by per-sample shuffling.
+        Per-sample shuffling is done by argsort random noise.
+        x: [N, L, D], sequence
+        """
+        N, L, D = x.shape  # batch, length, dim
+        len_keep = int(L * (1 - mask_ratio))
+        
+        noise = torch.rand(N, L, device=x.device)  # noise in [0, 1]
+        
+        # sort noise for each sample
+        ids_shuffle = torch.argsort(noise, dim=1)  # ascend: small is keep, large is remove
+        ids_restore = torch.argsort(ids_shuffle, dim=1)
+
+        # keep the first subset
+        # ids_keep = ids_shuffle[:, :len_keep]
+        # x_masked = torch.gather(x, dim=1, index=ids_keep.unsqueeze(-1).repeat(1, 1, D))
+
+        # generate the binary mask: 0 is keep, 1 is remove
+        mask = torch.ones([N, L], device=x.device)
+        mask[:, :len_keep] = 0
+        # unshuffle to get the binary mask
+        mask = torch.gather(mask, dim=1, index=ids_restore)
+
+        return mask
 
 
 class CLIP(nn.Module):

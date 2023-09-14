@@ -130,9 +130,9 @@ class CLIPImageFeatureEncoder(FeatureEncoder):
 
         return self.clip_proj(x)
 
-    def maskclip_forward(self, x, ret_feats=False):
+    def maskclip_forward(self, x, ret_feats=False, mask_emb=None):
         with torch.no_grad():
-            x = self.forward(x, spatial=True, ignore_last_attn=False, ret_feats=ret_feats)
+            x = self.forward(x, spatial=True, ignore_last_attn=False, ret_feats=ret_feats, mask_emb=mask_emb)
         return x
 
     def tcl_forward(self, x, ret_feats=False):

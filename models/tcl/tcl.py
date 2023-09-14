@@ -317,12 +317,15 @@ class TCL(nn.Module):
         w = W // self.patch_size
 
         # forward CLIP & extract features
-        clip_image_feats = self.clip_image_encoder.maskclip_forward(image, ret_feats=False)
+        clip_image_feats, clip_image_feats_bar, mask = self.clip_image_encoder.maskclip_forward(image, ret_feats=False, mask_emb=self.mask_emb)
 
         clip_image_feats = rearrange(clip_image_feats[:, 1:], "B (H W) C -> B C H W", H=h, W=w)
         clip_image_feats = self.decoder(clip_image_feats)
-
         image_feat = clip_image_feats.mean(dim=-1).mean(dim=-1)
+
+        clip_image_feats_bar = rearrange(clip_image_feats_bar[:, 1:], "B (H W) C -> B C H W", H=h, W=w)
+        clip_image_feats_bar = self.decoder_bar(clip_image_feats_bar)
+        image_feat_bar = clip_image_feats_bar.mean(dim=-1).mean(dim=-1)
 
         with torch.no_grad():
             text_emb = self.clip_text_encoder(text)
@@ -337,7 +340,8 @@ class TCL(nn.Module):
 
         if self.area_loss is not None:
             area_loss = self.area_loss(image_feat, self.label_embedding.data, tag)
-            ret["area_loss"] = area_loss * self.area_w
+            area_loss_bar = self.area_loss(image_feat_bar, self.label_embedding.data, tag)
+            ret["area_loss"] = area_loss * self.area_w + area_loss_bar * self.area_w
 
         return ret
 
