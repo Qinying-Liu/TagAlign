@@ -176,7 +176,7 @@ class Classification(nn.Module):
         # labelset = torch.nonzero(all_labels.sum(dim=0))[:, 0] # K
         # text_emb = text_emb[labelset]
         # labels = labels[:, labelset]
-        image_emb = us.normalize(image_emb, dim=-1) # N, T, D
+        image_emb = us.normalize(image_emb, dim=-1) # N, D
         text_emb = us.normalize(text_emb, dim=-1)
         logits_per_img = image_emb @ text_emb.t()
         # logits_per_img = torch.einsum('ntd,md->ntm', image_emb, text_emb)
@@ -184,12 +184,12 @@ class Classification(nn.Module):
         logits_per_img = logits_per_img * self.w + self.b
         # logits_per_img = torch.sigmoid(logits_per_img).mean(dim=1)
         # loss = F.binary_cross_entropy(logits_per_img, labels)
-        loss = self.binary_cross_entropy_with_logits(logits_per_img, labels) 
+        # loss = self.binary_cross_entropy_with_logits(logits_per_img, labels) 
         # loss = self.tagging_loss_function(logits_per_img, labels) 
         # loss = self.focalloss(logits_per_img, labels) 
-        # preds = (logits_per_img * logit_scale).softmax(dim=-1)
-        # labels = F.normalize(labels, dim=1, p=1)
-        # loss = -(preds.clamp(1e-7).log() * labels).sum(-1).mean()
+        preds = logits_per_img.softmax(dim=-1)
+        labels = F.normalize(labels, dim=-1, p=1)
+        loss = -(preds.clamp(1e-8).log() * labels).sum(-1).mean()
         # loss = F.cross_entropy(logits_per_img * logit_scale, labels)
         return loss
     
