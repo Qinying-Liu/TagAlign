@@ -213,7 +213,7 @@ class TCL(nn.Module):
         )
         self.patch_size = self.clip_image_encoder.patch_size
 
-        self.mask_emb = nn.Parameter(torch.randn((1, 1, self.clip_image_encoder.clip_visual.embed_dim)), requires_grad=True)
+        # self.mask_emb = nn.Parameter(torch.randn((1, 1, self.clip_image_encoder.clip_visual.embed_dim)), requires_grad=True)
 
         image_proj = self.clip_image_encoder.clone_proj()
 
@@ -228,7 +228,6 @@ class TCL(nn.Module):
         self.decoder = decoder
 
         image_proj_bar = self.clip_image_encoder.clone_proj()
-
         decoder_bar = MODELS.build(decoder_cfg)
         decoder_bar = nn.Sequential(OrderedDict([
             ("decoder", decoder_bar),
@@ -274,7 +273,7 @@ class TCL(nn.Module):
         self.clip_text_encoder.eval()
         self.decoder.train()
         self.decoder_bar.train()
-        self.mask_emb.requires_grad_(True)
+        # self.mask_emb.requires_grad_(True)
 
 
     def set_train(self, decoder_only: bool, config):
@@ -289,7 +288,7 @@ class TCL(nn.Module):
         self.clip_text_encoder.requires_grad_(False)
         self.decoder.requires_grad_(True)
         self.decoder_bar.requires_grad_(True)
-        self.mask_emb.requires_grad_(True)
+        # self.mask_emb.requires_grad_(True)
 
 
     def masked_pool(self, spatial_image_emb, mask, eps=1e-6):
@@ -317,7 +316,9 @@ class TCL(nn.Module):
         w = W // self.patch_size
 
         # forward CLIP & extract features
-        clip_image_feats, clip_image_feats_bar, mask = self.clip_image_encoder.maskclip_forward(image, ret_feats=False, mask_emb=self.mask_emb)
+        # clip_image_feats, clip_image_feats_bar, mask = self.clip_image_encoder.maskclip_forward(image, ret_feats=False, mask_emb=self.mask_emb)
+        clip_image_feats = self.clip_image_encoder.maskclip_forward(image, ret_feats=False)
+        clip_image_feats_bar = clip_image_feats
 
         clip_image_feats = rearrange(clip_image_feats[:, 1:], "B (H W) C -> B C H W", H=h, W=w)
         clip_image_feats = self.decoder(clip_image_feats)

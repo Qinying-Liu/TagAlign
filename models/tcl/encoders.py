@@ -98,7 +98,7 @@ class CLIPImageFeatureEncoder(FeatureEncoder):
         # for resblock in self.clip_visual.transformer.resblocks[feature_extract_index:]:
         #     resblock.hook_handler = resblock.register_forward_hook(self.hook)
 
-    def _encode(self, x, spatial=True, ignore_last_attn=None):
+    def _encode(self, x, spatial=True, ignore_last_attn=None, mask_emb=None):
         if ignore_last_attn is None:
             ignore_last_attn = self.ignore_last_attn
 
@@ -107,7 +107,8 @@ class CLIPImageFeatureEncoder(FeatureEncoder):
         x = self.clip_visual(
             x,
             spatial=spatial,
-            ignore_last_attn=ignore_last_attn
+            ignore_last_attn=ignore_last_attn,
+            mask_emb=mask_emb
         )  # [B, L, C]
         # if spatial:
         #     clip_features = x
