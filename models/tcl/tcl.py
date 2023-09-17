@@ -18,6 +18,12 @@ import us
 import numpy as np
 
 
+def weight_init(m):
+    if isinstance(m, nn.Conv2d):  # 仅对线性层参数进行初始化，可以根据需要修改
+        nn.init.normal_(m.weight.data)  # 使用Xavier正态分布初始化权重
+        nn.init.constant_(m.bias.data, 0.1)  # 使用常数初始化偏置
+
+
 def get_similarity_map(sm, shape=None):
 
     # min-max norm
@@ -184,12 +190,12 @@ class Classification(nn.Module):
         logits_per_img = logits_per_img * self.w + self.b
         # logits_per_img = torch.sigmoid(logits_per_img).mean(dim=1)
         # loss = F.binary_cross_entropy(logits_per_img, labels)
-        # loss = self.binary_cross_entropy_with_logits(logits_per_img, labels) 
+        loss = self.binary_cross_entropy_with_logits(logits_per_img, labels) 
         # loss = self.tagging_loss_function(logits_per_img, labels) 
         # loss = self.focalloss(logits_per_img, labels) 
-        preds = logits_per_img.softmax(dim=-1)
-        labels = F.normalize(labels, dim=-1, p=1)
-        loss = -(preds.clamp(1e-8).log() * labels).sum(-1).mean()
+        # preds = logits_per_img.softmax(dim=-1)
+        # labels = F.normalize(labels, dim=-1, p=1)
+        # loss = -(preds.clamp(1e-8).log() * labels).sum(-1).mean()
         # loss = F.cross_entropy(logits_per_img * logit_scale, labels)
         return loss
     
@@ -226,6 +232,7 @@ class TCL(nn.Module):
             ("image_proj", image_proj)
         ]))
         self.decoder = decoder
+        # self.decoder.apply(weight_init)
 
         image_proj_bar = self.clip_image_encoder.clone_proj()
         decoder_bar = MODELS.build(decoder_cfg)
@@ -234,6 +241,7 @@ class TCL(nn.Module):
             ("image_proj", image_proj_bar)
         ]))
         self.decoder_bar = decoder_bar
+        # self.decoder_bar.apply(weight_init)
 
         # masker_backbone = self.clip_image_encoder.clone_masker_backbone(ie_freeze)
         # masker_backbone.patch_size = self.patch_size
@@ -419,9 +427,10 @@ class TCL(nn.Module):
 
         simmap = torch.einsum("b c h w, n c -> b n h w", image_emb, text_emb)
 
-        hard_mask, soft_mask = self.sim2mask(simmap, deterministic=deterministic)
-        mask = hard_mask if hard else soft_mask
-        # mask = hard_mask
+        # hard_mask, soft_mask = self.sim2mask(simmap, deterministic=deterministic)
+        # mask = hard_mask if hard else soft_mask
+        # # mask = hard_mask
+        mask = 10 * simmap - 2.5
 
         return mask, simmap
 
@@ -511,17 +520,30 @@ class TCL(nn.Module):
 
         ############### Generate mask ################
         # soft mask
-        clip_image_feats = self.clip_image_encoder.maskclip_forward(image, ret_feats=False)
-        # image_feat = clip_image_feats[:, 0]
-        clip_image_feats = clip_image_feats[:, 1:]
+        # clip_image_feats = self.clip_image_encoder.maskclip_forward(image, ret_feats=False)
+        # # image_feat = clip_image_feats[:, 0]
+        # clip_image_feats = clip_image_feats[:, 1:]
 
         # h = (H - self.patch_size) // self.patch_size + 1
         # w = (W - self.patch_size) // self.patch_size + 1
-        stride = self.clip_image_encoder.clip_visual.conv1.stride
-        h = (H - self.patch_size) // stride[0] + 1
-        w = (W - self.patch_size) // stride[1] + 1
+        # stride = self.clip_image_encoder.clip_visual.conv1.stride
+        # h = (H - self.patch_size) // stride[0] + 1
+        # w = (W - self.patch_size) // stride[1] + 1
 
-        clip_image_feats = rearrange(clip_image_feats, "B (H W) C-> B C H W", H=h, W=w)
+        # clip_image_feats = rearrange(clip_image_feats, "B (H W) C-> B C H W", H=h, W=w)
+
+        h = H // self.patch_size
+        w = W // self.patch_size
+
+        clip_image_feats = self.clip_image_encoder.maskclip_forward(image, ret_feats=False)
+
+        clip_image_feats = rearrange(clip_image_feats[:, 1:], "B (H W) C -> B C H W", H=h, W=w)
+
+        clip_image_feats_bar = self.decoder_bar(clip_image_feats)
+        clip_image_feats = self.decoder(clip_image_feats)
+        print(clip_image_feats_bar[0, 0, :10, 0])
+        print(clip_image_feats[0, 0, :10, 0])
+        exit()
 
         mask, simmap = self.forward_seg(clip_image_feats, text_emb, hard=False)  # [B, N, H', W']
 
