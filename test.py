@@ -134,11 +134,11 @@ def train(cfg):
             model.register_comm_hook(pg, fp16_compress_hook)
         else:
             logger.info("!!! Single-node setting :: skip fp16 compression hook")
-
+    
     scaler = torch.cuda.amp.GradScaler(enabled=cfg.train.fp16)
 
-    # if cfg.checkpoint.resume:
-    #     load_checkpoint(cfg, model.module, optimizer, lr_scheduler, scaler)
+    if cfg.checkpoint.resume:
+        load_checkpoint(cfg, model.module, optimizer, lr_scheduler, scaler)
 
     if cfg.evaluate.eval_only:
         res = evaluate(cfg, model, val_loaders)

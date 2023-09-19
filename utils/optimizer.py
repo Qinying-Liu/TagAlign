@@ -10,11 +10,10 @@ def set_weight_decay(named_parameters, config):
     no_decay = []
 
     for name, param in named_parameters:
-        if len(param.shape) == 1 or name.endswith(".bias"):
-            no_decay.append(param)
-        else:
-            has_decay.append(param)
-
+         if len(param.shape) == 1 or name.endswith(".bias"):
+             no_decay.append(param)
+         else:
+             has_decay.append(param)
     return [{"params": has_decay}, {"params": no_decay, "weight_decay": 0.0}]
 
 

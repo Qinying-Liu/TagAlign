@@ -190,15 +190,14 @@ class Classification(nn.Module):
         logits_per_img = logits_per_img * self.w + self.b
         # logits_per_img = torch.sigmoid(logits_per_img).mean(dim=1)
         # loss = F.binary_cross_entropy(logits_per_img, labels)
-        loss = self.binary_cross_entropy_with_logits(logits_per_img, labels) 
+        # loss = self.binary_cross_entropy_with_logits(logits_per_img, labels) 
         # loss = self.tagging_loss_function(logits_per_img, labels) 
         # loss = self.focalloss(logits_per_img, labels) 
-        # preds = logits_per_img.softmax(dim=-1)
-        # labels = F.normalize(labels, dim=-1, p=1)
-        # loss = -(preds.clamp(1e-8).log() * labels).sum(-1).mean()
+        preds = logits_per_img.softmax(dim=-1)
+        labels = F.normalize(labels, dim=-1, p=1)
+        loss = -(preds.clamp(1e-8).log() * labels).sum(-1).mean()
         # loss = F.cross_entropy(logits_per_img * logit_scale, labels)
         return loss
-    
 
 
 @MODELS.register_module()
@@ -242,6 +241,8 @@ class TCL(nn.Module):
         ]))
         self.decoder_bar = decoder_bar
         # self.decoder_bar.apply(weight_init)
+
+        self.vit = self.clip_image_encoder.clip_visual
 
         # masker_backbone = self.clip_image_encoder.clone_masker_backbone(ie_freeze)
         # masker_backbone.patch_size = self.patch_size
@@ -314,6 +315,7 @@ class TCL(nn.Module):
         masked_image_emb = torch.einsum("bchw,bnhw->bnc", spatial_image_emb, weight)  # [BNC]
 
         return masked_image_emb
+    
 
     def forward(self, image, text, tag):
         # key of loss should have `loss` string (key w/o `loss` is not accumulated for final loss).
@@ -430,7 +432,7 @@ class TCL(nn.Module):
         # hard_mask, soft_mask = self.sim2mask(simmap, deterministic=deterministic)
         # mask = hard_mask if hard else soft_mask
         # # mask = hard_mask
-        mask = 10 * simmap - 2.5
+        mask = torch.sigmoid(10 * simmap - 2.5)
 
         return mask, simmap
 
@@ -541,11 +543,18 @@ class TCL(nn.Module):
 
         clip_image_feats_bar = self.decoder_bar(clip_image_feats)
         clip_image_feats = self.decoder(clip_image_feats)
-        print(clip_image_feats_bar[0, 0, :10, 0])
-        print(clip_image_feats[0, 0, :10, 0])
-        exit()
+        # print('0 is', self.decoder[0].net[0].conv.conv.bias.data[:10])
+        # print('1 is', self.decoder_bar[0].net[0].conv.conv.bias.data[:10])
+        # print(clip_image_feats_bar[0, 10, 10, :10])
+        # print(clip_image_feats[0, 10, 10, :10])
+        # exit()
 
         mask, simmap = self.forward_seg(clip_image_feats, text_emb, hard=False)  # [B, N, H', W']
+        mask_bar, simmap_bar = self.forward_seg(clip_image_feats_bar, text_emb, hard=False)  # [B, N, H', W']
+
+        mask = (mask + mask_bar) / 2
+        simmap = (simmap + simmap_bar) / 2
+        mask = torch.sigmoid(10 * simmap - 2.5)
 
         # refinement
         if apply_pamr:

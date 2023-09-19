@@ -8,7 +8,7 @@
 _base_ = ["../custom_import.py"]
 # dataset settings
 dataset_type = "ADE20KDataset"
-data_root = "./data/ade"
+data_root = "../data"
 img_norm_cfg = dict(mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
 test_pipeline = [
     dict(type="LoadImageFromFile"),

@@ -118,7 +118,7 @@ def train(cfg):
     model = MMDistributedDataParallel(
         model,
         device_ids=[torch.cuda.current_device()],
-        broadcast_buffers=False,
+        broadcast_buffers=False, # find_unused_parameters=True
     )
 
     n_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -374,7 +374,7 @@ def validate_seg(config, seg_config, data_loader, model):
     )
 
     mmddp_model = MMDistributedDataParallel(
-        seg_model, device_ids=[torch.cuda.current_device()], broadcast_buffers=False
+        seg_model, device_ids=[torch.cuda.current_device()], broadcast_buffers=False, 
     )
     mmddp_model.eval()
 
