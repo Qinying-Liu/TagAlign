@@ -553,8 +553,8 @@ class TCL(nn.Module):
         mask_bar, simmap_bar = self.forward_seg(clip_image_feats_bar, text_emb, hard=False)  # [B, N, H', W']
 
         mask = (mask + mask_bar) / 2
-        simmap = (simmap + simmap_bar) / 2
-        mask = torch.sigmoid(10 * simmap - 2.5)
+        # simmap = (simmap + simmap_bar) / 2
+        # mask = torch.sigmoid(10 * simmap - 2.5)
 
         # refinement
         if apply_pamr:
