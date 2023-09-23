@@ -221,7 +221,6 @@ class TCL(nn.Module):
         # self.mask_emb = nn.Parameter(torch.randn((1, 1, self.clip_image_encoder.clip_visual.embed_dim)), requires_grad=True)
 
         image_proj = self.clip_image_encoder.clone_proj()
-
         output_dim = self.clip_image_encoder.clip_visual.output_dim if self.clip_image_encoder.clip_visual.proj is not None else self.clip_image_encoder.clip_visual.embed_dim
         decoder_cfg = masker['decoder']
         decoder_cfg["C"] = output_dim
@@ -231,7 +230,6 @@ class TCL(nn.Module):
             ("image_proj", image_proj)
         ]))
         self.decoder = decoder
-        # self.decoder.apply(weight_init)
 
         image_proj_bar = self.clip_image_encoder.clone_proj()
         decoder_bar = MODELS.build(decoder_cfg)
@@ -240,7 +238,6 @@ class TCL(nn.Module):
             ("image_proj", image_proj_bar)
         ]))
         self.decoder_bar = decoder_bar
-        # self.decoder_bar.apply(weight_init)
 
         self.vit = self.clip_image_encoder.clip_visual
 
@@ -346,7 +343,7 @@ class TCL(nn.Module):
             ret["tv_loss"] = tv_loss * self.tv_w
 
         if self.tcli_loss is not None:
-            tcli_loss = self.tcli_loss(image_feat, text_emb)
+            tcli_loss = self.tcli_loss(image_feat, text_emb) + self.tcli_loss(image_feat_bar, text_emb)
             ret["tcli_loss"] = tcli_loss * self.tcl_w
 
         if self.area_loss is not None:
