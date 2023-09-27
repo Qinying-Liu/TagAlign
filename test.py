@@ -132,6 +132,7 @@ def train(cfg):
             pg = _get_default_group()
             logger.info("!!! Multi-node setting :: turn on fp16 compression hook")
             model.register_comm_hook(pg, fp16_compress_hook)
+
         else:
             logger.info("!!! Single-node setting :: skip fp16 compression hook")
     
