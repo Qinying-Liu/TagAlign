@@ -28,7 +28,7 @@ data:
       transforms:
           type: STANDARD
       fseek: False
-      tag_file: '../data/CC12M/CC12M-BLIP-tag/meta_nouns_index_BLIP-10000.json' # '../data/CC12M/CC12M_meta_nouns_index.json'
+      tag_file: '../data/CC12M/CC12M-BLIP-tag/meta_nouns_index_BLIP-100000.json' # '../data/CC12M/CC12M_meta_nouns_index.json'
       num_tags: 10000
       
 
