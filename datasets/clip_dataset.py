@@ -157,10 +157,12 @@ class ClipDataset(BaseDataset):
                     csv_reader = csv.reader(f)
                     next(csv_reader)
                     for line in csv_reader:
-                        filename = osp.join(rd, osp.basename(line[0]))
-                        info = {'filename':filename, 'caption':line[1]}
-                        self.metas.append(info)
-                        self.num += 1
+                        base_name = osp.basename(line[0])
+                        if base_name in self.meta_tag:
+                            filename = osp.join(rd, osp.basename(line[0]))
+                            info = {'filename':filename, 'caption':line[1]}
+                            self.metas.append(info)
+                            self.num += 1
 
         #   ### read from local file and load all metafile info ###
         #    for rd, each_meta_file in zip(root_dir, meta_file):

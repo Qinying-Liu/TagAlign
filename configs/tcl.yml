@@ -11,7 +11,7 @@ data:
                 # '../data/CC4M/cc4m_imgs.zip',
                 ]
       meta_file: [
-                  '../data/CC12M/CC12M_meta_selected.csv',
+                  '../data/CC12M/CC12M_meta.csv',
                 ]
       # read_from: petrel
       read_from: dir

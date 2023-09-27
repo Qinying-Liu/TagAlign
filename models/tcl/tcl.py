@@ -343,7 +343,7 @@ class TCL(nn.Module):
             ret["tv_loss"] = tv_loss * self.tv_w
 
         if self.tcli_loss is not None:
-            tcli_loss = self.tcli_loss(image_feat, text_emb) + self.tcli_loss(image_feat_bar, text_emb)
+            tcli_loss = self.tcli_loss(image_feat, text_emb) # + self.tcli_loss(image_feat_bar, text_emb)
             ret["tcli_loss"] = tcli_loss * self.tcl_w
 
         if self.area_loss is not None:
