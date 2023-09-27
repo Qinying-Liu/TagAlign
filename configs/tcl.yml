@@ -11,8 +11,8 @@ data:
                 # '../data/CC4M/cc4m_imgs.zip',
                 ]
       meta_file: [
-                  # '../data/CC12M/CC12M_meta.csv',
-                  '../data/CC12M/CC12M-BLIP-caption/CC12M-BLIP-meta.csv',
+                  '../data/CC12M/CC12M_meta.csv',
+                  # '../data/CC12M/CC12M-BLIP-caption/CC12M-BLIP-meta.csv',
                 ]
       # read_from: petrel
       read_from: dir
@@ -29,7 +29,7 @@ data:
           type: STANDARD
       fseek: False
       tag_file: '../data/CC12M/CC12M-BLIP-tag/meta_nouns_index_BLIP-100000.json' # '../data/CC12M/CC12M_meta_nouns_index.json'
-      num_tags: 10000
+      num_tags: 100000
       
 
 model:
