@@ -28,8 +28,8 @@ data:
       transforms:
           type: STANDARD
       fseek: False
-      tag_file: '../data/CC12M/CC12M-BASE-tag/meta_nouns_index_num_100.json' # '../data/CC12M/CC12M_meta_nouns_index.json'
-      num_tags: 25136 # 10391 # 100000
+      tag_file: '../data/CC12M/CC12M-RAM-tags/meta_nouns_index_top10000_multi_base+blip+ram.json' # '../data/CC12M/CC12M_meta_nouns_index.json'
+      num_tags: 100000 # 25136 # 10391 
       
 
 model:
