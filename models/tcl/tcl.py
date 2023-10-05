@@ -344,7 +344,7 @@ class TCL(nn.Module):
             ret["tv_loss"] = tv_loss * self.tv_w
 
         if self.tcli_loss is not None:
-            tcli_loss = self.tcli_loss(image_feat, text_emb) # + self.tcli_loss(image_feat_bar, text_emb)
+            tcli_loss = self.tcli_loss(image_feat, text_emb) + self.tcli_loss(image_feat_bar, text_emb)
             ret["tcli_loss"] = tcli_loss * self.tcl_w
 
         if self.area_loss is not None:
@@ -550,7 +550,7 @@ class TCL(nn.Module):
         mask, simmap = self.forward_seg(clip_image_feats, text_emb, hard=False)  # [B, N, H', W']
         mask_bar, simmap_bar = self.forward_seg(clip_image_feats_bar, text_emb, hard=False)  # [B, N, H', W']
 
-        mask = mask_bar
+        # mask = mask_bar ##single
         # mask = (mask + mask_bar) / 2
         # simmap = (simmap + simmap_bar) / 2
         # mask = torch.sigmoid(10 * simmap - 2.5)
