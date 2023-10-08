@@ -29,7 +29,7 @@ data:
           type: STANDARD
       fseek: False
       tag_file: '../data/CC12M/CC12M-BLIP+BASE-tag/meta_nouns_index_top100000_singular_BLIP.json' # '../data/CC12M/CC12M_meta_nouns_index.json'
-      num_tags: 10000 # 25136 # 10391 
+      num_tags: 100000 # 25136 # 10391 
       
 
 model:
