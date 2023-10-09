@@ -6,7 +6,7 @@ evaluate:
   eval_only: true
   template: simple # identity_template # simple # custom
   task:
-    - voc20
+    - context59
     # - voc
     # - voc20
     # - context

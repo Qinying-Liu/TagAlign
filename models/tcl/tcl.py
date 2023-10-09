@@ -262,7 +262,7 @@ class TCL(nn.Module):
         self.area_loss = Classification(**masker['sim2mask']) if area_w else None
 
         # self.label_embedding = nn.Parameter(torch.load(f'../data/CC12M/CC12M_textual_top10000_label_embedding.pth', map_location='cpu').float(), requires_grad=False)
-        self.label_embedding = nn.Parameter(torch.load(f'../data/CC12M/CC12M-BLIP+BASE-tag/label_embedding_singular_BLIP+BASE_100000.pth', map_location='cpu').float(), requires_grad=False)
+        self.label_embedding = nn.Parameter(torch.load(f'../data/CC12M/CC12M-BLIP-tag/label_embedding_BLIP-10000.pth', map_location='cpu').float(), requires_grad=False)
 
         # self.area_w = area_w
         # self.area_loss = AreaTCLLoss(0.4)
@@ -550,7 +550,7 @@ class TCL(nn.Module):
         mask, simmap = self.forward_seg(clip_image_feats, text_emb, hard=False)  # [B, N, H', W']
         mask_bar, simmap_bar = self.forward_seg(clip_image_feats_bar, text_emb, hard=False)  # [B, N, H', W']
 
-        # mask = mask_bar ##single
+        mask = mask_bar ##single
         # mask = (mask + mask_bar) / 2
         # simmap = (simmap + simmap_bar) / 2
         # mask = torch.sigmoid(10 * simmap - 2.5)
