@@ -183,8 +183,8 @@ class Classification(nn.Module):
         # text_emb = text_emb[labelset]
         # labels = labels[:, labelset]
         image_emb = us.normalize(image_emb, dim=-1) # N, D
-        text_emb = us.normalize(text_emb, dim=-1)
-        logits_per_img = image_emb @ text_emb.t()
+        text_emb = us.normalize(text_emb, dim=-1)  # 10000, D
+        logits_per_img = image_emb @ text_emb.t() # N * 10000
         # logits_per_img = torch.einsum('ntd,md->ntm', image_emb, text_emb)
         # logit_scale = torch.clamp(self.logit_scale.exp(), max=100)
         logits_per_img = logits_per_img * self.w + self.b
@@ -339,11 +339,11 @@ class TCL(nn.Module):
         with torch.no_grad():
             text_emb = self.clip_text_encoder(text)
 
-        if self.tv_loss is not None:
-            tv_loss = self.tv_loss(clip_image_feats, text_emb)  # ExtendedInfoNCE
-            ret["tv_loss"] = tv_loss * self.tv_w
+        # if self.tv_loss is not None:
+        #     tv_loss = self.tv_loss(clip_image_feats, text_emb)  # ExtendedInfoNCE
+        #     ret["tv_loss"] = tv_loss * self.tv_w
 
-        if self.tcli_loss is not None:
+        if self.tcli_loss is not None: # infornce 
             tcli_loss = self.tcli_loss(image_feat, text_emb) # + self.tcli_loss(image_feat_bar, text_emb)
             ret["tcli_loss"] = tcli_loss * self.tcl_w
 
@@ -545,13 +545,13 @@ class TCL(nn.Module):
         # print('1 is', self.decoder_bar[0].net[0].conv.conv.bias.data[:10])
         # print(clip_image_feats_bar[0, 10, 10, :10])
         # print(clip_image_feats[0, 10, 10, :10])
-        # exit()
+        # exit() 
+        # B * 20 * H  * W
 
         mask, simmap = self.forward_seg(clip_image_feats, text_emb, hard=False)  # [B, N, H', W']
         mask_bar, simmap_bar = self.forward_seg(clip_image_feats_bar, text_emb, hard=False)  # [B, N, H', W']
 
-        mask = mask_bar ##single
-        # mask = (mask + mask_bar) / 2
+        # mask = mask_bar ##single
         # simmap = (simmap + simmap_bar) / 2
         # mask = torch.sigmoid(10 * simmap - 2.5)
 
