@@ -30,6 +30,7 @@ data:
       fseek: False
       tag_file: '../data/CC12M/CC12M-BLIP-tag/meta_nouns_index_BLIP-10000.json' # '../data/CC12M/CC12M_meta_nouns_index.json'
       num_tags: 10000 # 25136 # 10391 
+      label_file: ../data/CC12M/CC12M-BLIP-tag/label_embedding_BLIP-10000.pth
       
 
 model:
@@ -56,11 +57,17 @@ model:
     #   init_b: 0.0
     #   gumbel_tau: 1.0
     #   learnable: false
+  decoder:
+    decoder_embed_dim: 512
+    decoder_num_heads: 16
+    decoder_depth: 3
+    mlp_ratio: 4.
 
   # tcl
   tcl_w: 0.0 # contrastive loss
   tv_w: 0.0 # patch contrastive loss
   area_w: 0.0
+  label_file: ${data.train.label_file}
 
 train:
   ust_steps: 30000  # train decoder only in this steps
