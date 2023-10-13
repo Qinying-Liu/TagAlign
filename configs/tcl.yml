@@ -57,11 +57,6 @@ model:
     #   init_b: 0.0
     #   gumbel_tau: 1.0
     #   learnable: false
-  decoder:
-    decoder_embed_dim: 512
-    decoder_num_heads: 16
-    decoder_depth: 3
-    mlp_ratio: 4.
 
   # tcl
   tcl_w: 0.0 # contrastive loss
