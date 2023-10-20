@@ -193,11 +193,42 @@ class Classification(nn.Module):
         # loss = self.binary_cross_entropy_with_logits(logits_per_img, labels) 
         # loss = self.tagging_loss_function(logits_per_img, labels) 
         # loss = self.focalloss(logits_per_img, labels) 
-        preds = logits_per_img.softmax(dim=-1)
+        # preds = logits_per_img.softmax(dim=-1)
         labels = F.normalize(labels, dim=-1, p=1)
         loss = -(preds.clamp(1e-8).log() * labels).sum(-1).mean()
         # loss = F.cross_entropy(logits_per_img * logit_scale, labels)
         return loss
+
+
+class Embedding(nn.Module):
+    """Apply layer norm & projection for 1d or 2d inputs.
+    """
+    def __init__(self, in_dim, out_dim):
+        super().__init__()
+        self.in_dim = in_dim
+        self.out_dim = out_dim
+
+        self.main_branch = nn.Sequential(
+            nn.Linear(self.in_dim, self.in_dim), 
+            nn.ReLU(inplace=True), 
+            nn.Linear(self.in_dim, self.out_dim))
+        # self.residual_branch = nn.Conv2d(self.in_dim, self.out_dim, 1)
+        self._initialize_weights() 
+
+    def _initialize_weights(self):
+        for m in self.main_branch.modules():
+            if isinstance(m, nn.Linear):
+                nn.init.eye_(m.weight)
+                if m.bias is not None:
+                    nn.init.zeros_(m.bias)
+        # for m in self.residual_branch.modules():
+        #     if isinstance(m, nn.Linear):
+        #         nn.init.eye_(m.weight)
+        #         if m.bias is not None:
+        #             nn.init.zeros_(m.bias)
+
+    def forward(self, x):
+        return self.main_branch(x) # + 0.5 * self.residual_branch(x)
 
 
 @MODELS.register_module()
@@ -230,6 +261,7 @@ class TCL(nn.Module):
             ("image_proj", image_proj)
         ]))
         self.decoder = decoder
+        # self.visual_mlp = Embedding(self.clip_image_encoder.clip_visual.output_dim, self.clip_image_encoder.clip_visual.output_dim)
 
         image_proj_bar = self.clip_image_encoder.clone_proj()
         decoder_bar = MODELS.build(decoder_cfg)
@@ -238,8 +270,11 @@ class TCL(nn.Module):
             ("image_proj", image_proj_bar)
         ]))
         self.decoder_bar = decoder_bar
+        # self.visual_mlp_bar = Embedding(self.clip_image_encoder.clip_visual.output_dim, self.clip_image_encoder.clip_visual.output_dim)
 
         self.vit = self.clip_image_encoder.clip_visual
+        
+        # self.text_mlp = Embedding(self.clip_image_encoder.clip_visual.output_dim, self.clip_image_encoder.clip_visual.output_dim)
 
         # masker_backbone = self.clip_image_encoder.clone_masker_backbone(ie_freeze)
         # masker_backbone.patch_size = self.patch_size
@@ -281,6 +316,9 @@ class TCL(nn.Module):
         self.decoder.train()
         self.decoder_bar.train()
         # self.mask_emb.requires_grad_(True)
+        # self.visual_mlp.train()
+        # self.visual_mlp_bar.train()
+        # self.text_mlp.train()
 
 
     def set_train(self, decoder_only: bool, config):
@@ -296,6 +334,9 @@ class TCL(nn.Module):
         self.decoder.requires_grad_(True)
         self.decoder_bar.requires_grad_(True)
         # self.mask_emb.requires_grad_(True)
+        # self.visual_mlp.requires_grad_(True)
+        # self.visual_mlp_bar.requires_grad_(True)
+        # self.text_mlp.requires_grad_(True)
 
 
     def masked_pool(self, spatial_image_emb, mask, eps=1e-6):
@@ -330,15 +371,24 @@ class TCL(nn.Module):
 
         clip_image_feats = rearrange(clip_image_feats[:, 1:], "B (H W) C -> B C H W", H=h, W=w)
         clip_image_feats = self.decoder(clip_image_feats)
+        # image_feat = clip_image_feats.mean(dim=-1).mean(dim=-1)
+        # clip_image_feats = self.visual_mlp(clip_image_feats)
+        # clip_image_feats = F.normalize(clip_image_feats, p=2, dim=1)
         image_feat = clip_image_feats.mean(dim=-1).mean(dim=-1)
+        # image_feat1 = self.visual_mlp(image_feat)
 
         clip_image_feats_bar = rearrange(clip_image_feats_bar[:, 1:], "B (H W) C -> B C H W", H=h, W=w)
         clip_image_feats_bar = self.decoder_bar(clip_image_feats_bar)
+        # image_feat_bar = clip_image_feats_bar.mean(dim=-1).mean(dim=-1)
+        # clip_image_feats_bar = self.visual_mlp_bar(clip_image_feats_bar)
+        # clip_image_feats_bar = F.normalize(clip_image_feats_bar, p=2, dim=1)
         image_feat_bar = clip_image_feats_bar.mean(dim=-1).mean(dim=-1)
+        # image_feat_bar1 = self.visual_mlp_bar(image_feat_bar)
 
         with torch.no_grad():
             text_emb = self.clip_text_encoder(text)
 
+        # text_emb = self.text_mlp(text_emb)
         # if self.tv_loss is not None:
         #     tv_loss = self.tv_loss(clip_image_feats, text_emb)  # ExtendedInfoNCE
         #     ret["tv_loss"] = tv_loss * self.tv_w

@@ -118,7 +118,7 @@ def train(cfg):
     model = MMDistributedDataParallel(
         model,
         device_ids=[torch.cuda.current_device()],
-        broadcast_buffers=False, # find_unused_parameters=True
+        broadcast_buffers=False, find_unused_parameters=True
     )
 
     n_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)

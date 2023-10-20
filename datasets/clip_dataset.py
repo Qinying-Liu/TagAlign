@@ -123,12 +123,14 @@ class ClipDataset(BaseDataset):
 
         self.tokenizer = SimpleTokenizer()
 
-        with open(tag_file, 'r') as f:
-            meta_tag = json.load(f) 
-            data = {}
-            for k, v in meta_tag.items():
-                data[osp.basename(k)] = v
-            self.meta_tag = data
+        meta_tag = {}
+        for rd, each_tag_file in zip(root_dir, tag_file):
+            with open(each_tag_file, 'r') as f:
+                each_meta_tag = json.load(f) 
+                for filename, tag in each_meta_tag.items():
+                    filepath = osp.join(rd, filename)
+                    meta_tag[filepath] = tag
+        self.meta_tag = meta_tag
 
         self.num_tags = num_tags
 
@@ -147,23 +149,18 @@ class ClipDataset(BaseDataset):
                     f.close()
                 self.num += len(line_offset)
                 self.line_offsets.append(line_offset)
-
         else:
             ### read from local file and load all metafile info ###
             for rd, each_meta_file in zip(root_dir, meta_file):
-                print(each_meta_file)
                 with open(each_meta_file) as f:
-                    # lines = f.readlines()
                     csv_reader = csv.reader(f)
                     next(csv_reader)
                     for line in csv_reader:
-                        base_name = osp.basename(line[0])
-                        if base_name in self.meta_tag:
-                            filename = osp.join(rd, osp.basename(line[0]))
+                        filename = osp.join(rd, line[0])
+                        if filename in self.meta_tag:
                             info = {'filename':filename, 'caption':line[1]}
                             self.metas.append(info)
                             self.num += 1
-
         #   ### read from local file and load all metafile info ###
         #    for rd, each_meta_file in zip(root_dir, meta_file):
         #         with open(each_meta_file) as f:
@@ -245,8 +242,7 @@ class ClipDataset(BaseDataset):
         curr_meta = self._load_meta(idx)
         filename = curr_meta['filename']
 
-        tag_label = self.meta_tag[os.path.basename(filename)]
-        # tag_label = self.meta_tag[filename]
+        tag_label = self.meta_tag[filename]
         tag_label_embedding = torch.zeros(self.num_tags, dtype=torch.float)
         if len(tag_label) > 0:
             tag_label_embedding[tag_label] = 1 
