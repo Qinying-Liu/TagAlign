@@ -9,12 +9,12 @@ data:
       root_dir: [
                  'pcache://vilabpcacheproxyi-pool.cz50c.alipay.com:39999/mnt/',
                  # 'pcache://vilabpcacheproxyi-pool.cz50c.alipay.com:39999/mnt/',
-                 # 'pcache://vilabpcacheproxyi-pool.cz50c.alipay.com:39999/mnt/',
+                 'pcache://vilabpcacheproxyi-pool.cz50c.alipay.com:39999/mnt/',
                 ]
       meta_file: [
                   '../data/CC12M/CC12M_meta.csv',
                   # '../data/YFCC15M/YFCC15M-BLIP-caption/YFCC15M-BLIP-meta.csv', #  '../data/YFCC15M/YFCC15M_meta.csv',
-                  # '../data/CC3M/cc3m_meta.csv',
+                  '../data/CC3M/cc3m_meta.csv',
                 ]
       # read_from: petrel
       read_from: dir
@@ -31,21 +31,21 @@ data:
           type: STANDARD
       fseek: False
 
-      tag_file: [
-        '../data/CC12M/CC12M_meta_nouns_index.json',
-        # '../data/YFCC15M/YFCC15M-BLIP-tag/meta_nouns_index_top10000_singular_revised.json',
-        # '../data/CC3M/CC3M-tag/meta_nouns_index_top10000_singular_revised.json',
-        ]
-      num_tags: 10000 
-      label_file: '../data/CC12M/CC12M_textual_top10000_label_embedding.pth'
-      
       # tag_file: [
-      #   '../data/CC12M/CC12M-tag/meta_nouns_index_top100000.json',
-      #   # '../data/YFCC15M/YFCC15M-tag/meta_nouns_index_top100000_singular_revised.json',
-      #   # '../data/CC3M/CC3M-tag/meta_nouns_index_top100000_singular_revised.json',
-      #   ]
-      # num_tags: 100000 
-      # label_file: '../data/CC12M/CC12M-tag/label_embedding_top100000.pth'
+      #  '../data/CC12M/CC12M_meta_nouns_index.json',
+      #  # '../data/YFCC15M/YFCC15M-BLIP-tag/meta_nouns_index_top10000_singular_revised.json',
+      #  '../data/CC3M/CC3M-tag/meta_nouns_index_top10000_singular_revised.json',
+      #  ]
+      # num_tags: 10000 
+      # label_file: '../data/CC12M/CC12M_textual_top10000_label_embedding.pth'
+      
+      tag_file: [
+        '../data/CC12M/CC12M-tag/meta_nouns_index_top100000.json',
+        # '../data/YFCC15M/YFCC15M-tag/meta_nouns_index_top100000_singular_revised.json',
+        '../data/CC3M/CC3M-tag/meta_nouns_index_top100000_singular_revised.json',
+        ]
+      num_tags: 100000 
+      label_file: '../data/CC12M/CC12M-tag/label_embedding_top100000.pth'
       
 
 model:

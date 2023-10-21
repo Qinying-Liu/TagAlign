@@ -193,7 +193,7 @@ class Classification(nn.Module):
         # loss = self.binary_cross_entropy_with_logits(logits_per_img, labels) 
         # loss = self.tagging_loss_function(logits_per_img, labels) 
         # loss = self.focalloss(logits_per_img, labels) 
-        # preds = logits_per_img.softmax(dim=-1)
+        preds = logits_per_img.softmax(dim=-1)
         labels = F.normalize(labels, dim=-1, p=1)
         loss = -(preds.clamp(1e-8).log() * labels).sum(-1).mean()
         # loss = F.cross_entropy(logits_per_img * logit_scale, labels)
