@@ -200,6 +200,45 @@ class Classification(nn.Module):
         return loss
 
 
+@MODELS.register_module()
+class PatchClassification(nn.Module):
+    # def __init__(self, T_init=0.07, T_learnable=True):
+    #     super().__init__()
+    #     self.logit_scale = nn.Parameter(torch.ones([]) * np.log(1 / T_init))
+    #     if not T_learnable:
+    #         self.logit_scale.requires_grad_(False)
+    #     self.binary_cross_entropy_with_logits = nn.BCEWithLogitsLoss()
+
+    def __init__(self, init_w=1.0, init_b=0.0, learnable=True, gumbel_tau=1.0):
+        super().__init__()
+        self.init_w = init_w
+        self.init_b = init_b
+        self.learnable = learnable
+
+        assert not ((init_w is None) ^ (init_b is None))
+        if learnable:
+            self.w = nn.Parameter(torch.full([], float(init_w)))
+            self.b = nn.Parameter(torch.full([], float(init_b)))
+        else:
+            self.w = init_w
+            self.b = init_b
+
+    def forward(self, image_emb, text_emb, labels):
+        logits_per_patch = torch.einsum('nld,cd->nlc', image_emb, text_emb) # N, L, C
+        d = image_emb.size(-1)
+        scale = d ** 0.5
+        pred_per_patch = torch.softmax(logits_per_patch / scale, dim=1) # N, L, C
+        feat_per_class = torch.einsum('nlc,ld->ncd', pred_per_patch, image_emb) # N, C, D
+        feat_per_class = us.normalize(feat_per_class, dim=-1) # N, C, D
+        text_emb = us.normalize(text_emb, dim=-1)  # C, D
+        logits_per_img = torch.einsum('ncd,cd->nc', feat_per_class, text_emb)
+        logits_per_img = logits_per_img * self.w + self.b
+        preds = logits_per_img.softmax(dim=-1)
+        labels = F.normalize(labels, dim=-1, p=1)
+        loss = -(preds.clamp(1e-8).log() * labels).sum(-1).mean()
+        return loss
+
+
 class Embedding(nn.Module):
     """Apply layer norm & projection for 1d or 2d inputs.
     """
