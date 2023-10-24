@@ -224,11 +224,12 @@ class PatchClassification(nn.Module):
             self.b = init_b
 
     def forward(self, image_emb, text_emb, labels):
-        logits_per_patch = torch.einsum('nld,cd->nlc', image_emb, text_emb) # N, L, C
-        d = image_emb.size(-1)
+        image_emb = image_emb.view(image_emb.size(0), image_emb.size(1), -1)
+        logits_per_patch = torch.einsum('ndl,cd->nlc', image_emb, text_emb) # N, L, C
+        d = image_emb.size(1)
         scale = d ** 0.5
         pred_per_patch = torch.softmax(logits_per_patch / scale, dim=1) # N, L, C
-        feat_per_class = torch.einsum('nlc,ld->ncd', pred_per_patch, image_emb) # N, C, D
+        feat_per_class = torch.einsum('nlc,ndl->ncd', pred_per_patch, image_emb) # N, C, D
         feat_per_class = us.normalize(feat_per_class, dim=-1) # N, C, D
         text_emb = us.normalize(text_emb, dim=-1)  # C, D
         logits_per_img = torch.einsum('ncd,cd->nc', feat_per_class, text_emb)

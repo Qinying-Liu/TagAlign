@@ -7,14 +7,15 @@ data:
       - gcc12m
   train: 
       root_dir: [
-                 'pcache://vilabpcacheproxyi-pool.cz50c.alipay.com:39999/mnt/bacba1e325b67e1aa48e7ff40f7e80bf/CC12M/images/',
+                 # 'pcache://vilabpcacheproxyi-pool.cz50c.alipay.com:39999/mnt/bacba1e325b67e1aa48e7ff40f7e80bf/CC12M/images/',
+                 'pcache://vilabpcacheproxyi-pool.cz50c.alipay.com:39999/mnt/',
                 #  'pcache://vilabpcacheproxyi-pool.cz50c.alipay.com:39999/mnt/',
-                #  'pcache://vilabpcacheproxyi-pool.cz50c.alipay.com:39999/mnt/',
+                'pcache://vilabpcacheproxyi-pool.cz50c.alipay.com:39999/mnt/',
                 ]
       meta_file: [
-                  '../data/CC12M/CC12M-BLIP-caption/CC12M-BLIP-meta.csv',
+                  '../data/CC12M/CC12M_meta.csv',
                   # '../data/YFCC15M/YFCC15M-BLIP-caption/YFCC15M-BLIP-meta.csv', #  '../data/YFCC15M/YFCC15M_meta.csv',
-                  # '../data/CC3M/cc3m_meta.csv',
+                  '../data/CC3M/cc3m_meta.csv',
                 ]
       # read_from: petrel
       read_from: dir
@@ -33,7 +34,7 @@ data:
       tag_file: [
         '../data/CC12M/CC12M-BLIP+BASE-tag/meta_nouns_index_top10000_singular_BLIP+BASE.json',
         # '../data/YFCC15M/YFCC15M-BLIP-tag/meta_nouns_index_top10000_singular_revised.json',
-        # '../data/CC3M/CC3M-tag/meta_nouns_index_top10000_singular_revised.json',
+        '../data/CC3M/CC3M-tag/meta_nouns_index_top10000_singular_BLIP+BASE.json',
         ]
       num_tags: 10000 
       label_file: '../data/CC12M/CC12M-BLIP+BASE-tag/label_embedding_singular_BLIP+BASE_10000.pth'
