@@ -30,6 +30,11 @@ import multiprocessing
 import csv
 from pcache_fileio import fileio
 
+from PIL import ImageFile
+ImageFile.LOAD_TRUNCATED_IMAGES = True
+Image.MAX_IMAGE_PIXELS = None
+
+
 lemmatizer = WordNetLemmatizer()
 
 ### frequently appeared 100 entities ###
