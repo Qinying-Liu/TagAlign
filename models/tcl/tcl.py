@@ -132,6 +132,55 @@ class AsymmetricLoss(nn.Module):
 
         return -loss.mean()
 
+class Ralloss(nn.Module):
+    def __init__(self, gamma_neg=4, gamma_pos=0, clip=0.05, eps=1e-8, lamb=1.5, epsilon_neg=0.0, epsilon_pos=1.0, epsilon_pos_pow=-2.5, disable_torch_grad_focal_loss=False):
+        super(Ralloss, self).__init__()
+
+        self.gamma_neg = gamma_neg
+        self.gamma_pos = gamma_pos
+        self.clip = clip
+        self.disable_torch_grad_focal_loss = disable_torch_grad_focal_loss
+        self.eps = eps
+
+        # parameters of Taylor expansion polynomials
+        self.epsilon_pos = epsilon_pos
+        self.epsilon_neg = epsilon_neg
+        self.epsilon_pos_pow = epsilon_pos_pow
+        self.margin = 1.0
+        self.lamb = lamb
+
+    def forward(self, x, y):
+        """"
+        x: input logits with size (batch_size, number of labels).
+        y: binarized multi-label targets with size (batch_size, number of labels).
+        """
+        # Calculating Probabilities
+        x_sigmoid = torch.sigmoid(x)
+        xs_pos = x_sigmoid
+        xs_neg = 1 - x_sigmoid
+
+        # Asymmetric Clipping
+        if self.clip is not None and self.clip > 0:
+            xs_neg = (xs_neg + self.clip).clamp(max=1)
+
+        # Basic Taylor expansion polynomials
+        los_pos = y * (torch.log(xs_pos.clamp(min=self.eps)) + self.epsilon_pos * (1 - xs_pos.clamp(min=self.eps)) + self.epsilon_pos_pow * 0.5 * torch.pow(1 - xs_pos.clamp(min=self.eps), 2))
+        los_neg = (1 - y) * (torch.log(xs_neg.clamp(min=self.eps)) + self.epsilon_neg * (xs_neg.clamp(min=self.eps)) ) * (self.lamb - x_sigmoid) * x_sigmoid ** 2 * (self.lamb - xs_neg)
+        loss = los_pos + los_neg
+
+        # Asymmetric Focusing
+        if self.gamma_neg > 0 or self.gamma_pos > 0:
+            if self.disable_torch_grad_focal_loss:
+                torch.set_grad_enabled(False)
+            pt0 = xs_pos * y
+            pt1 = xs_neg * (1 - y)  # pt = p if t > 0 else 1-p
+            pt = pt0 + pt1
+            one_sided_gamma = self.gamma_pos * y + self.gamma_neg * (1 - y)
+            one_sided_w = torch.pow(1 - pt, one_sided_gamma)
+            if self.disable_torch_grad_focal_loss:
+                torch.set_grad_enabled(True)
+            loss *= one_sided_w
+        return -loss.sum(-1).mean()
 
 @MODELS.register_module()
 class FocalLoss(nn.Module):
@@ -168,35 +217,50 @@ class Classification(nn.Module):
         assert not ((init_w is None) ^ (init_b is None))
         if learnable:
             self.w = nn.Parameter(torch.full([], float(init_w)))
-            self.b = nn.Parameter(torch.full([], float(init_b)))
+            # self.b = nn.Parameter(torch.full([], float(init_b)))
+            self.b = init_b
         else:
             self.w = init_w
             self.b = init_b
         
-        # self.binary_cross_entropy_with_logits = nn.BCEWithLogitsLoss()
+        self.binary_cross_entropy_with_logits = nn.BCEWithLogitsLoss()
         # self.tagging_loss_function = AsymmetricLoss(gamma_neg=7, gamma_pos=0, clip=0.05)
-        self.focalloss = FocalLoss(alpha=0.75, gamma=0.1)
+        # self.focalloss = FocalLoss(alpha=0.25, gamma=2.0)
+        # self.ralloss = Ralloss()
 
-    def forward(self, image_emb, text_emb, labels):
+    def forward(self, image_emb, text_emb, labels, weights=1):
+
         # all_labels = us.gather_cat(labels) # N, K
         # labelset = torch.nonzero(all_labels.sum(dim=0))[:, 0] # K
         # text_emb = text_emb[labelset]
         # labels = labels[:, labelset]
+
         image_emb = us.normalize(image_emb, dim=-1) # N, D
         text_emb = us.normalize(text_emb, dim=-1)  # 10000, D
         logits_per_img = image_emb @ text_emb.t() # N * 10000
+
         # logits_per_img = torch.einsum('ntd,md->ntm', image_emb, text_emb)
         # logit_scale = torch.clamp(self.logit_scale.exp(), max=100)
+
         logits_per_img = logits_per_img * self.w + self.b
-        # logits_per_img = torch.sigmoid(logits_per_img).mean(dim=1)
-        # loss = F.binary_cross_entropy(logits_per_img, labels)
+
         # loss = self.binary_cross_entropy_with_logits(logits_per_img, labels) 
+        
         # loss = self.tagging_loss_function(logits_per_img, labels) 
-        loss = self.focalloss(logits_per_img, labels) 
+
+        # loss = self.focalloss(logits_per_img, labels) 
+
         # preds = logits_per_img.softmax(dim=-1)
-        # labels = F.normalize(labels, dim=-1, p=1)
-        # loss = -(preds.clamp(1e-8).log() * labels).sum(-1).mean()
-        # loss = F.cross_entropy(logits_per_img * logit_scale, labels)
+        preds = (logits_per_img - logits_per_img.max().detach()).exp()
+        weights = torch.tensor(weights, dtype=preds.dtype, device=preds.device)
+        weights = 1 / weights.clamp(1e-8)
+        weights = F.normalize(weights, dim=-1, p=1) * weights.size(0)
+        # preds = preds * weights
+        preds = F.normalize(preds, dim=-1, p=1)
+        labels = F.normalize(labels, dim=-1, p=1)
+        loss = -(preds.clamp(1e-8).log() * weights * labels).sum(-1).mean()
+
+        # loss = self.ralloss(logits_per_img, labels)
         return loss
 
 
@@ -338,6 +402,8 @@ class TCL(nn.Module):
 
         self.label_embedding = nn.Parameter(torch.load(label_file, map_location='cpu').float(), requires_grad=False)
 
+        self.class_freq = None
+
         # self.area_w = area_w
         # self.area_loss = AreaTCLLoss(0.4)
         # self.neg_area_loss = AreaTCLLoss(0.0)
@@ -410,17 +476,21 @@ class TCL(nn.Module):
 
         clip_image_feats = rearrange(clip_image_feats[:, 1:], "B (H W) C -> B C H W", H=h, W=w)
         clip_image_feats = self.decoder(clip_image_feats)
+
         # image_feat = clip_image_feats.mean(dim=-1).mean(dim=-1)
         # clip_image_feats = self.visual_mlp(clip_image_feats)
         # clip_image_feats = F.normalize(clip_image_feats, p=2, dim=1)
+
         image_feat = clip_image_feats.mean(dim=-1).mean(dim=-1)
         # image_feat1 = self.visual_mlp(image_feat)
 
         clip_image_feats_bar = rearrange(clip_image_feats_bar[:, 1:], "B (H W) C -> B C H W", H=h, W=w)
         clip_image_feats_bar = self.decoder_bar(clip_image_feats_bar)
+
         # image_feat_bar = clip_image_feats_bar.mean(dim=-1).mean(dim=-1)
         # clip_image_feats_bar = self.visual_mlp_bar(clip_image_feats_bar)
         # clip_image_feats_bar = F.normalize(clip_image_feats_bar, p=2, dim=1)
+
         image_feat_bar = clip_image_feats_bar.mean(dim=-1).mean(dim=-1)
         # image_feat_bar1 = self.visual_mlp_bar(image_feat_bar)
 
@@ -437,8 +507,8 @@ class TCL(nn.Module):
             ret["tcli_loss"] = tcli_loss * self.tcl_w
 
         if self.area_loss is not None:
-            area_loss = self.area_loss(image_feat, self.label_embedding.data, tag)
-            area_loss_bar = self.area_loss(image_feat_bar, self.label_embedding.data, tag)
+            area_loss = self.area_loss(image_feat, self.label_embedding.data, tag, self.class_freq)
+            area_loss_bar = self.area_loss(image_feat_bar, self.label_embedding.data, tag, self.class_freq)
             ret["area_loss"] = area_loss * self.area_w + area_loss_bar * self.area_w
 
         return ret
@@ -467,7 +537,6 @@ class TCL(nn.Module):
         # [N, C]
         text_embs = text_embs.mean(dim=1)
         text_embs = us.normalize(text_embs, dim=-1)
-
         return text_embs
 
     def apply_pamr(self, image, mask):

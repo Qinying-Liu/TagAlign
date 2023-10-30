@@ -111,6 +111,7 @@ def train(cfg):
     # build model & optimizer
     logger.info(f"Creating model:{cfg.model.type}/{cfg.model_name}")
     model = build_model(cfg.model)
+    model.class_freq = dataset_train.class_freq
     model.cuda()
 
     model.set_train(decoder_only=(cfg.train.ust_steps > 0), config=cfg)

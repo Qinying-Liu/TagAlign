@@ -139,6 +139,8 @@ class ClipDataset(BaseDataset):
 
         self.num_tags = num_tags
 
+        self.class_samples = [[] for _ in range(num_tags)] 
+
         self.metas = []
         ### fseek uses file seek to load each line with pointer online ###
         ### this saves the memory while adding the loading time ###
@@ -163,9 +165,17 @@ class ClipDataset(BaseDataset):
                     for line in csv_reader:
                         filename = osp.join(rd, line[0])
                         if filename in self.meta_tag:
+
+                            for tag in self.meta_tag[filename]:
+                                self.class_samples[tag].append(self.num)
+
                             info = {'filename':filename, 'caption':line[1]}
                             self.metas.append(info)
                             self.num += 1
+        
+        class_num = [len(per_class_samples) for per_class_samples in self.class_samples]
+        self.class_freq = [per_class_num / sum(class_num) for per_class_num in class_num]
+
         #   ### read from local file and load all metafile info ###
         #    for rd, each_meta_file in zip(root_dir, meta_file):
         #         with open(each_meta_file) as f:
@@ -244,6 +254,12 @@ class ClipDataset(BaseDataset):
 
 
     def __getitem__(self, idx):
+        # random_int = random.randint(0, self.num_tags - 1)
+        # per_class_samples = self.class_samples[random_int]
+        # random_sample = random.choice(per_class_samples)
+        
+        # idx = random_sample
+
         curr_meta = self._load_meta(idx)
         filename = curr_meta['filename']
 
