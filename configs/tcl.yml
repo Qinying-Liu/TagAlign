@@ -10,12 +10,12 @@ data:
                  # 'pcache://vilabpcacheproxyi-pool.cz50c.alipay.com:39999/mnt/bacba1e325b67e1aa48e7ff40f7e80bf/CC12M/images/',
                  'pcache://vilabpcacheproxyi-pool.cz50c.alipay.com:39999/mnt/',
                  # 'pcache://vilabpcacheproxyi-pool.cz50c.alipay.com:39999/mnt/',
-                 # 'pcache://vilabpcacheproxyi-pool.cz50c.alipay.com:39999/mnt/',
+                 'pcache://vilabpcacheproxyi-pool.cz50c.alipay.com:39999/mnt/',
                 ]
       meta_file: [
                   '../data/CC12M/CC12M_meta.csv', # '../data/CC12M/CC12M-BLIP-caption/CC12M-BLIP-meta.csv',
                   # '../data/YFCC15M/YFCC15M_meta.csv',
-                  # '../data/CC3M/cc3m_meta.csv', # '../data/CC3M/CC3M-BLIP-caption/CC3M-BLIP-meta.csv',
+                  '../data/CC3M/cc3m_meta.csv', # '../data/CC3M/CC3M-BLIP-caption/CC3M-BLIP-meta.csv',
                  ]
       # read_from: petrel
       read_from: dir
@@ -31,21 +31,21 @@ data:
       transforms:
           type: STANDARD
       fseek: False
-      # tag_file: [
-      #   '../data/CC12M+CC3M_BASE+BLIP/meta_nouns_index_num1000_singular_CC12M_BLIP+BASE.json',
-      #   # '../data/YFCC15M/YFCC15M-BLIP-tag/meta_nouns_index_top10000_singular_revised.json',
-      #   '../data/CC12M+CC3M_BASE+BLIP/meta_nouns_index_num1000_singular_CC3M_BLIP+BASE.json',
-      #   ]
-      # num_tags: 5409 # 75105 # 50391 # 29349 # 12933 # 8884 # 5409
-      # label_file: '../data/CC12M+CC3M_BASE+BLIP/label_embedding_num1000_singular_CC12M+CC3M_BLIP+BASE.pth'
-
       tag_file: [
-        '../data/CC12M/CC12M_meta_nouns_index.json',
+        '../data/CC12M+CC3M_BASE+BLIP/meta_nouns_index_num1500_singular_CC12M_BLIP+BASE.json',
         # '../data/YFCC15M/YFCC15M-BLIP-tag/meta_nouns_index_top10000_singular_revised.json',
-        # '../data/CC3M/CC3M-tag/meta_nouns_index_top10000_singular_revised.json',
+        '../data/CC12M+CC3M_BASE+BLIP/meta_nouns_index_num1500_singular_CC3M_BLIP+BASE.json',
         ]
-      num_tags: 10000 
-      label_file: '../data/CC12M/CC12M_textual_top10000_label_embedding.pth'
+      num_tags: 4056 # 75105 # 50391 # 29349 # 12933 # 8884 # 5409 # 4056 # 3321
+      label_file: '../data/CC12M+CC3M_BASE+BLIP/label_embedding_num1500_singular_CC12M+CC3M_BLIP+BASE.pth'
+
+      # tag_file: [
+      #   '../data/CC12M/CC12M_meta_nouns_index.json',
+      #   # '../data/YFCC15M/YFCC15M-BLIP-tag/meta_nouns_index_top10000_singular_revised.json',
+      #   # '../data/CC3M/CC3M-tag/meta_nouns_index_top10000_singular_revised.json',
+      #   ]
+      # num_tags: 10000 
+      # label_file: '../data/CC12M/CC12M_textual_top10000_label_embedding.pth'
 
       # tag_file: [
       #   '../data/CC12M/CC12M-BLIP+BASE-tag/meta_nouns_index_top10000_singular_BLIP+BASE.json',

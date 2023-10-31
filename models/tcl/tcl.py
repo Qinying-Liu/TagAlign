@@ -242,7 +242,7 @@ class Classification(nn.Module):
         # logits_per_img = torch.einsum('ntd,md->ntm', image_emb, text_emb)
         # logit_scale = torch.clamp(self.logit_scale.exp(), max=100)
 
-        logits_per_img = logits_per_img * self.w + self.b
+        logits_per_img = logits_per_img * torch.clamp(self.w, max=100)
 
         # loss = self.binary_cross_entropy_with_logits(logits_per_img, labels) 
         
@@ -250,15 +250,15 @@ class Classification(nn.Module):
 
         # loss = self.focalloss(logits_per_img, labels) 
 
-        # preds = logits_per_img.softmax(dim=-1)
-        preds = (logits_per_img - logits_per_img.max().detach()).exp()
-        weights = torch.tensor(weights, dtype=preds.dtype, device=preds.device)
-        weights = 1 / weights.clamp(1e-8)
-        weights = F.normalize(weights, dim=-1, p=1) * weights.size(0)
+        preds = logits_per_img.softmax(dim=-1)
+        # preds = (logits_per_img - logits_per_img.max().detach()).exp()
+        # weights = torch.tensor(weights, dtype=preds.dtype, device=preds.device)
+        # weights = 1 / weights.clamp(1e-8)
+        # weights = F.normalize(weights, dim=-1, p=1) * weights.size(0)
         # preds = preds * weights
-        preds = F.normalize(preds, dim=-1, p=1)
+        # preds = F.normalize(preds, dim=-1, p=1)
         labels = F.normalize(labels, dim=-1, p=1)
-        loss = -(preds.clamp(1e-8).log() * weights * labels).sum(-1).mean()
+        loss = -(preds.clamp(1e-8).log() * labels).sum(-1).mean()
 
         # loss = self.ralloss(logits_per_img, labels)
         return loss
@@ -699,12 +699,6 @@ class TCL(nn.Module):
 
         clip_image_feats_bar = self.decoder_bar(clip_image_feats)
         clip_image_feats = self.decoder(clip_image_feats)
-        # print('0 is', self.decoder[0].net[0].conv.conv.bias.data[:10])
-        # print('1 is', self.decoder_bar[0].net[0].conv.conv.bias.data[:10])
-        # print(clip_image_feats_bar[0, 10, 10, :10])
-        # print(clip_image_feats[0, 10, 10, :10])
-        # exit() 
-        # B * 20 * H  * W
 
         mask, simmap = self.forward_seg(clip_image_feats, text_emb, hard=False)  # [B, N, H', W']
         mask_bar, simmap_bar = self.forward_seg(clip_image_feats_bar, text_emb, hard=False)  # [B, N, H', W']
