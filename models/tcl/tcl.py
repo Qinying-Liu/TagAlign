@@ -132,6 +132,7 @@ class AsymmetricLoss(nn.Module):
 
         return -loss.mean()
 
+
 class Ralloss(nn.Module):
     def __init__(self, gamma_neg=4, gamma_pos=0, clip=0.05, eps=1e-8, lamb=1.5, epsilon_neg=0.0, epsilon_pos=1.0, epsilon_pos_pow=-2.5, disable_torch_grad_focal_loss=False):
         super(Ralloss, self).__init__()
@@ -182,6 +183,7 @@ class Ralloss(nn.Module):
             loss *= one_sided_w
         return -loss.sum(-1).mean()
 
+
 @MODELS.register_module()
 class FocalLoss(nn.Module):
     def __init__(self, alpha=0.25, gamma=2):
@@ -199,6 +201,40 @@ class FocalLoss(nn.Module):
             return loss
 
 
+def pairwise_circleloss(
+        dist_mat: torch.Tensor, # N, K
+        targets: torch.Tensor, # N, K
+        margin: float,
+        gamma: float, ) -> torch.Tensor:
+    # embedding = F.normalize(embedding, dim=1)
+
+    # dist_mat = torch.matmul(embedding, embedding.t())
+    # N, K
+
+    N = dist_mat.size(0)
+
+    # is_pos = targets.view(N, 1).expand(N, N).eq(targets.view(N, 1).expand(N, N).t()).float()
+    # is_neg = targets.view(N, 1).expand(N, N).ne(targets.view(N, 1).expand(N, N).t()).float()
+
+    # Mask scores related to itself
+    # is_pos = is_pos - torch.eye(N, N, device=is_pos.device)
+
+    s_p = dist_mat * targets
+    s_n = dist_mat * (1 - targets)
+
+    alpha_p = torch.clamp_min(-s_p.detach() + 1 + margin, min=0.)
+    alpha_n = torch.clamp_min(s_n.detach() + margin, min=0.)
+    delta_p = 1 - margin
+    delta_n = margin
+
+    logit_p = - gamma * alpha_p * (s_p - delta_p) + (-9999999.) * (1 - targets)
+    logit_n = gamma * alpha_n * (s_n - delta_n) + (-9999999.) * targets
+
+    loss = F.softplus(torch.logsumexp(logit_p, dim=1) + torch.logsumexp(logit_n, dim=1)).mean()
+
+    return loss
+
+
 @MODELS.register_module()
 class Classification(nn.Module):
     # def __init__(self, T_init=0.07, T_learnable=True):
@@ -208,22 +244,27 @@ class Classification(nn.Module):
     #         self.logit_scale.requires_grad_(False)
     #     self.binary_cross_entropy_with_logits = nn.BCEWithLogitsLoss()
 
-    def __init__(self, init_w=1.0, init_b=0.0, learnable=True, gumbel_tau=1.0):
+    def __init__(self, init_w=1.0, init_b=0.0, learnable_w=True, learnable_b=True, gumbel_tau=1.0, scale=10, ratio=-1):
         super().__init__()
         self.init_w = init_w
         self.init_b = init_b
-        self.learnable = learnable
+
+        self.ratio = ratio
 
         assert not ((init_w is None) ^ (init_b is None))
-        if learnable:
+        if learnable_w:
             self.w = nn.Parameter(torch.full([], float(init_w)))
-            # self.b = nn.Parameter(torch.full([], float(init_b)))
-            self.b = init_b
         else:
             self.w = init_w
+
+        if learnable_b:
+            self.b = nn.Parameter(torch.full([], float(init_b)))
+        else:
             self.b = init_b
         
-        self.binary_cross_entropy_with_logits = nn.BCEWithLogitsLoss()
+        self.scale = scale
+        
+        # self.binary_cross_entropy_with_logits = nn.BCEWithLogitsLoss()
         # self.tagging_loss_function = AsymmetricLoss(gamma_neg=7, gamma_pos=0, clip=0.05)
         # self.focalloss = FocalLoss(alpha=0.25, gamma=2.0)
         # self.ralloss = Ralloss()
@@ -234,71 +275,88 @@ class Classification(nn.Module):
         # labelset = torch.nonzero(all_labels.sum(dim=0))[:, 0] # K
         # text_emb = text_emb[labelset]
         # labels = labels[:, labelset]
+        image_emb = image_emb.mean(dim=-1).mean(dim=-1)
 
         image_emb = us.normalize(image_emb, dim=-1) # N, D
         text_emb = us.normalize(text_emb, dim=-1)  # 10000, D
         logits_per_img = image_emb @ text_emb.t() # N * 10000
 
+        loss = pairwise_circleloss(logits_per_img, labels, 0.25, 128)
+
         # logits_per_img = torch.einsum('ntd,md->ntm', image_emb, text_emb)
         # logit_scale = torch.clamp(self.logit_scale.exp(), max=100)
 
-        logits_per_img = logits_per_img * torch.clamp(self.w, max=100)
+        # logits_per_img = logits_per_img * torch.clamp(self.w, max=100)
 
         # loss = self.binary_cross_entropy_with_logits(logits_per_img, labels) 
         
         # loss = self.tagging_loss_function(logits_per_img, labels) 
 
         # loss = self.focalloss(logits_per_img, labels) 
-
-        preds = logits_per_img.softmax(dim=-1)
+        # preds = logits_per_img.softmax(dim=-1)
         # preds = (logits_per_img - logits_per_img.max().detach()).exp()
         # weights = torch.tensor(weights, dtype=preds.dtype, device=preds.device)
         # weights = 1 / weights.clamp(1e-8)
         # weights = F.normalize(weights, dim=-1, p=1) * weights.size(0)
         # preds = preds * weights
         # preds = F.normalize(preds, dim=-1, p=1)
-        labels = F.normalize(labels, dim=-1, p=1)
-        loss = -(preds.clamp(1e-8).log() * labels).sum(-1).mean()
-
+        # labels = F.normalize(labels, dim=-1, p=1)
+        # loss = -(preds.clamp(1e-8).log() * labels).sum(-1).mean()
         # loss = self.ralloss(logits_per_img, labels)
         return loss
 
 
 @MODELS.register_module()
 class PatchClassification(nn.Module):
-    # def __init__(self, T_init=0.07, T_learnable=True):
-    #     super().__init__()
-    #     self.logit_scale = nn.Parameter(torch.ones([]) * np.log(1 / T_init))
-    #     if not T_learnable:
-    #         self.logit_scale.requires_grad_(False)
-    #     self.binary_cross_entropy_with_logits = nn.BCEWithLogitsLoss()
-
-    def __init__(self, init_w=1.0, init_b=0.0, learnable=True, gumbel_tau=1.0):
+    def __init__(self, init_w=1.0, init_b=0.0, learnable_w=True, learnable_b=True, gumbel_tau=1.0, scale=10, ratio=-1):
         super().__init__()
         self.init_w = init_w
         self.init_b = init_b
-        self.learnable = learnable
+
+        self.ratio = ratio
 
         assert not ((init_w is None) ^ (init_b is None))
-        if learnable:
+        if learnable_w:
             self.w = nn.Parameter(torch.full([], float(init_w)))
-            self.b = nn.Parameter(torch.full([], float(init_b)))
         else:
             self.w = init_w
-            self.b = init_b
 
-    def forward(self, image_emb, text_emb, labels):
-        image_emb = image_emb.view(image_emb.size(0), image_emb.size(1), -1)
-        logits_per_patch = torch.einsum('ndl,cd->nlc', image_emb, text_emb) # N, L, C
-        d = image_emb.size(1)
-        scale = d ** 0.5
-        pred_per_patch = torch.softmax(logits_per_patch / scale, dim=1) # N, L, C
-        feat_per_class = torch.einsum('nlc,ndl->ncd', pred_per_patch, image_emb) # N, C, D
-        feat_per_class = us.normalize(feat_per_class, dim=-1) # N, C, D
-        text_emb = us.normalize(text_emb, dim=-1)  # C, D
-        logits_per_img = torch.einsum('ncd,cd->nc', feat_per_class, text_emb)
-        logits_per_img = logits_per_img * self.w + self.b
+        if learnable_b:
+            self.b = nn.Parameter(torch.full([], float(init_b)))
+        else:
+            self.b = init_b
+        
+        self.scale = scale
+
+    def forward(self, image_emb, text_emb, labels, weights=1):
+        image_emb = image_emb.view(image_emb.size(0), image_emb.size(1), -1).permute(0, 2, 1) # N, L, D
+        image_emb_norm = us.normalize(image_emb, dim=-1) 
+        text_emb_norm = us.normalize(text_emb, dim=-1)  # C, D
+
+        if self.ratio > 0:
+            '''
+            N, L, D = image_emb.size()
+            K = int(L * self.ratio)
+            logits_per_patch = torch.einsum('nld,cd->nlc', image_emb_norm, text_emb_norm)
+            logits_per_patch = logits_per_patch * self.w + self.b
+            _, topk_indices = torch.topk(logits_per_patch, K, dim=1)
+            logits_per_img = torch.mean(torch.gather(logits_per_patch, 1, topk_indices), dim=1) 
+            '''
+            image_emb = image_emb.mean(dim=1)
+            image_emb_norm = us.normalize(image_emb, dim=-1) 
+            logits_per_img = torch.einsum('nd,cd->nc', image_emb_norm, text_emb_norm)
+            logits_per_img = logits_per_img * self.w + self.b
+
+        else:
+            logits_per_patch = torch.einsum('nld,cd->nlc', image_emb_norm, text_emb_norm) * self.scale
+            pred_per_patch = torch.softmax(logits_per_patch, dim=1) # N, L, C
+            feat_per_class = torch.einsum('nlc,nld->ncd', pred_per_patch, image_emb) # N, C, D
+            feat_per_class_norm = us.normalize(feat_per_class, dim=-1) # N, C, D
+            logits_per_img = torch.einsum('ncd,cd->nc', feat_per_class_norm, text_emb_norm)
+            logits_per_img = logits_per_img * self.w + self.b
+        
         preds = logits_per_img.softmax(dim=-1)
+
         labels = F.normalize(labels, dim=-1, p=1)
         loss = -(preds.clamp(1e-8).log() * labels).sum(-1).mean()
         return loss
@@ -316,8 +374,8 @@ class Embedding(nn.Module):
             nn.Linear(self.in_dim, self.in_dim), 
             nn.ReLU(inplace=True), 
             nn.Linear(self.in_dim, self.out_dim))
-        # self.residual_branch = nn.Conv2d(self.in_dim, self.out_dim, 1)
-        self._initialize_weights() 
+        self.residual_branch = nn.Linear(self.in_dim, self.in_dim)
+        # self._initialize_weights() 
 
     def _initialize_weights(self):
         for m in self.main_branch.modules():
@@ -325,14 +383,14 @@ class Embedding(nn.Module):
                 nn.init.eye_(m.weight)
                 if m.bias is not None:
                     nn.init.zeros_(m.bias)
-        # for m in self.residual_branch.modules():
-        #     if isinstance(m, nn.Linear):
-        #         nn.init.eye_(m.weight)
-        #         if m.bias is not None:
-        #             nn.init.zeros_(m.bias)
+        for m in self.residual_branch.modules():
+            if isinstance(m, nn.Linear):
+                nn.init.eye_(m.weight)
+                if m.bias is not None:
+                    nn.init.zeros_(m.bias)
 
     def forward(self, x):
-        return self.main_branch(x) # + 0.5 * self.residual_branch(x)
+        return 0.5 * self.main_branch(x) + 0.5 * self.residual_branch(x)
 
 
 @MODELS.register_module()
@@ -354,42 +412,49 @@ class TCL(nn.Module):
         self.patch_size = self.clip_image_encoder.patch_size
 
         # self.mask_emb = nn.Parameter(torch.randn((1, 1, self.clip_image_encoder.clip_visual.embed_dim)), requires_grad=True)
+        # self.mask_emb = 0.5
 
-        image_proj = self.clip_image_encoder.clone_proj()
         output_dim = self.clip_image_encoder.clip_visual.output_dim if self.clip_image_encoder.clip_visual.proj is not None else self.clip_image_encoder.clip_visual.embed_dim
-        decoder_cfg = masker['decoder']
-        decoder_cfg["C"] = output_dim
-        decoder = MODELS.build(decoder_cfg)
-        decoder = nn.Sequential(OrderedDict([
-            ("decoder", decoder),
-            ("image_proj", image_proj)
-        ]))
-        self.decoder = decoder
-        # self.visual_mlp = Embedding(self.clip_image_encoder.clip_visual.output_dim, self.clip_image_encoder.clip_visual.output_dim)
 
-        image_proj_bar = self.clip_image_encoder.clone_proj()
-        decoder_bar = MODELS.build(decoder_cfg)
-        decoder_bar = nn.Sequential(OrderedDict([
-            ("decoder", decoder_bar),
-            ("image_proj", image_proj_bar)
-        ]))
-        self.decoder_bar = decoder_bar
-        # self.visual_mlp_bar = Embedding(self.clip_image_encoder.clip_visual.output_dim, self.clip_image_encoder.clip_visual.output_dim)
+        decoder_cfg = masker['decoder']
+        self.decoder_cfg = decoder_cfg
+        if decoder_cfg['type'] == 'GDecoder':
+            decoder_cfg["C"] = output_dim
+            image_proj = self.clip_image_encoder.clone_proj()
+            decoder = MODELS.build(decoder_cfg)
+            decoder = nn.Sequential(OrderedDict([
+                ("decoder", decoder),
+                ("image_proj", image_proj)
+                ]))
+            self.decoder = decoder
+
+            image_proj_bar = self.clip_image_encoder.clone_proj()
+            decoder_bar = MODELS.build(decoder_cfg)
+            decoder_bar = nn.Sequential(OrderedDict([
+                ("decoder", decoder_bar),
+                ("image_proj", image_proj_bar)
+                ]))
+            self.decoder_bar = decoder_bar
+        else:
+            image_proj = self.clip_image_encoder.clone_proj()
+            decoder = Embedding(self.clip_image_encoder.clip_visual.embed_dim, self.clip_image_encoder.clip_visual.embed_dim)
+            decoder = nn.Sequential(OrderedDict([
+                ("decoder", decoder),
+                ("image_proj", image_proj)
+                ]))
+            self.decoder = decoder
+
+            image_proj_bar = self.clip_image_encoder.clone_proj()
+            decoder_bar = Embedding(self.clip_image_encoder.clip_visual.embed_dim, self.clip_image_encoder.clip_visual.embed_dim)
+            decoder_bar = nn.Sequential(OrderedDict([
+                ("decoder", decoder_bar),
+                ("image_proj", image_proj_bar)
+                ]))
+            self.decoder_bar = decoder_bar
 
         self.vit = self.clip_image_encoder.clip_visual
         
-        # self.text_mlp = Embedding(self.clip_image_encoder.clip_visual.output_dim, self.clip_image_encoder.clip_visual.output_dim)
-
-        # masker_backbone = self.clip_image_encoder.clone_masker_backbone(ie_freeze)
-        # masker_backbone.patch_size = self.patch_size
-        # image_proj = self.clip_image_encoder.clone_proj()
-        # self.masker = Masker(
-        #     backbone=masker_backbone,
-        #     image_proj=image_proj,
-        #     ignore_last_attn=ie_ignore_last_attn,
-        #     **masker
-        # )
-        # self.sim2mask = Sim2Mask(**masker['sim2mask'])
+        self.text_mlp = Embedding(self.clip_image_encoder.clip_visual.output_dim, self.clip_image_encoder.clip_visual.output_dim) if decoder_cfg['text'] else None
 
         self.tv_w = tv_w
         self.tv_loss = ExtendedInfoNCE() if tv_w else None
@@ -420,10 +485,8 @@ class TCL(nn.Module):
         self.clip_text_encoder.eval()
         self.decoder.train()
         self.decoder_bar.train()
-        # self.mask_emb.requires_grad_(True)
-        # self.visual_mlp.train()
-        # self.visual_mlp_bar.train()
-        # self.text_mlp.train()
+        if self.text_mlp is not None:
+            self.text_mlp.train()
 
 
     def set_train(self, decoder_only: bool, config):
@@ -438,10 +501,8 @@ class TCL(nn.Module):
         self.clip_text_encoder.requires_grad_(False)
         self.decoder.requires_grad_(True)
         self.decoder_bar.requires_grad_(True)
-        # self.mask_emb.requires_grad_(True)
-        # self.visual_mlp.requires_grad_(True)
-        # self.visual_mlp_bar.requires_grad_(True)
-        # self.text_mlp.requires_grad_(True)
+        if self.text_mlp is not None:
+            self.text_mlp.requires_grad_(True)
 
 
     def masked_pool(self, spatial_image_emb, mask, eps=1e-6):
@@ -470,34 +531,41 @@ class TCL(nn.Module):
         w = W // self.patch_size
 
         # forward CLIP & extract features
-        # clip_image_feats, clip_image_feats_bar, mask = self.clip_image_encoder.maskclip_forward(image, ret_feats=False, mask_emb=self.mask_emb)
+        # clip_image_feats, mask, ids_restore = self.clip_image_encoder.maskclip_forward(image, ret_feats=False, mask_emb=self.mask_emb)
         clip_image_feats = self.clip_image_encoder.maskclip_forward(image, ret_feats=False)
-        clip_image_feats_bar = clip_image_feats
 
-        clip_image_feats = rearrange(clip_image_feats[:, 1:], "B (H W) C -> B C H W", H=h, W=w)
-        clip_image_feats = self.decoder(clip_image_feats)
+        if self.decoder_cfg['type'] == 'GDecoder':
+            '''
+            x = clip_image_feats
+            mask_tokens = torch.zeros((x.shape[0], ids_restore.shape[1] + 1 - x.shape[1], x.shape[2]), dtype=x.dtype, device=x.device)
+            x_ = torch.cat([x[:, 1:, :], mask_tokens], dim=1)  # no cls token
+            x_ = torch.gather(x_, dim=1, index=ids_restore.unsqueeze(-1).repeat(1, 1, x.shape[2]))  # unshuffle
+            x = torch.cat([x[:, :1, :], x_], dim=1)  # append cls token
+            clip_image_feats = x
+            '''
 
-        # image_feat = clip_image_feats.mean(dim=-1).mean(dim=-1)
-        # clip_image_feats = self.visual_mlp(clip_image_feats)
-        # clip_image_feats = F.normalize(clip_image_feats, p=2, dim=1)
-
-        image_feat = clip_image_feats.mean(dim=-1).mean(dim=-1)
-        # image_feat1 = self.visual_mlp(image_feat)
-
-        clip_image_feats_bar = rearrange(clip_image_feats_bar[:, 1:], "B (H W) C -> B C H W", H=h, W=w)
-        clip_image_feats_bar = self.decoder_bar(clip_image_feats_bar)
-
-        # image_feat_bar = clip_image_feats_bar.mean(dim=-1).mean(dim=-1)
-        # clip_image_feats_bar = self.visual_mlp_bar(clip_image_feats_bar)
-        # clip_image_feats_bar = F.normalize(clip_image_feats_bar, p=2, dim=1)
-
-        image_feat_bar = clip_image_feats_bar.mean(dim=-1).mean(dim=-1)
-        # image_feat_bar1 = self.visual_mlp_bar(image_feat_bar)
+            image_feats = rearrange(clip_image_feats[:, 1:], "B (H W) C -> B C H W", H=h, W=w)
+            image_feats = self.decoder(image_feats)
+            image_feat = image_feats.mean(dim=-1).mean(dim=-1)
+            
+            image_feats_bar = rearrange(clip_image_feats[:, 1:], "B (H W) C -> B C H W", H=h, W=w)
+            image_feats_bar = self.decoder_bar(image_feats_bar)
+            image_feat_bar = image_feats_bar.mean(dim=-1).mean(dim=-1)
+        else:
+            image_feats = clip_image_feats[:, 1:]
+            image_feats = self.decoder(image_feats)
+            image_feat = image_feats.mean(dim=1)
+            
+            image_feats_bar = clip_image_feats[:, 1:]
+            image_feats_bar = self.decoder_bar(image_feats_bar)
+            image_feat_bar = image_feats_bar.mean(dim=1)      
 
         with torch.no_grad():
             text_emb = self.clip_text_encoder(text)
 
-        # text_emb = self.text_mlp(text_emb)
+        if self.text_mlp is not None:
+            text_emb = self.text_mlp(text_emb)
+
         # if self.tv_loss is not None:
         #     tv_loss = self.tv_loss(clip_image_feats, text_emb)  # ExtendedInfoNCE
         #     ret["tv_loss"] = tv_loss * self.tv_w
@@ -507,8 +575,8 @@ class TCL(nn.Module):
             ret["tcli_loss"] = tcli_loss * self.tcl_w
 
         if self.area_loss is not None:
-            area_loss = self.area_loss(image_feat, self.label_embedding.data, tag, self.class_freq)
-            area_loss_bar = self.area_loss(image_feat_bar, self.label_embedding.data, tag, self.class_freq)
+            area_loss = self.area_loss(image_feats, self.label_embedding.data, tag, self.class_freq)
+            area_loss_bar = self.area_loss(image_feats_bar, self.label_embedding.data, tag, self.class_freq)
             ret["area_loss"] = area_loss * self.area_w + area_loss_bar * self.area_w
 
         return ret

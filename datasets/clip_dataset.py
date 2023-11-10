@@ -257,7 +257,6 @@ class ClipDataset(BaseDataset):
         # random_int = random.randint(0, self.num_tags - 1)
         # per_class_samples = self.class_samples[random_int]
         # random_sample = random.choice(per_class_samples)
-        
         # idx = random_sample
 
         curr_meta = self._load_meta(idx)

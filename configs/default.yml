@@ -3,7 +3,7 @@ _base_: "eval.yml"
 data:
   batch_size: 256
   pin_memory: true
-  num_workers: 16
+  num_workers: 10
   seed: ${train.seed}
   dataset:
     meta:

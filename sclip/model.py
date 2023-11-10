@@ -872,46 +872,16 @@ class VisionTransformer(nn.Module):
         H, W = x.shape[2:]
         x = x.reshape(x.shape[0], x.shape[1], -1)  # shape = [*, width, grid ** 2]
         x = x.permute(0, 2, 1)  # shape = [*, grid ** 2, width]
-
-        if mask_emb is not None:
-            mask = self.random_masking(x, 0.5)
-            mask_emb = mask_emb.expand_as(x)
-            x_bar = mask * mask_emb + (1 - mask) * x
-            
-            x_bar = torch.cat([self.class_embedding.to(x.dtype) + torch.zeros(x_bar.shape[0], 1, x_bar.shape[-1], dtype=x_bar.dtype, device=x_bar.device), x], dim=1)  # shape = [*, grid ** 2 + 1, width]
-
-            pos = interpolate_pos_emb(self.positional_embedding, H, W).to(x_bar.dtype)
-            
-            x_bar = x_bar + pos
-            x_bar = self.ln_pre(x_bar)
-            
-            x_bar = x_bar.permute(1, 0, 2)  # NLD -> LND
-            x_bar, x_ori_bar = self.transformer(x_bar)
-            x_bar[0, :, :] = x_ori_bar[0, :, :] # clip_surgery
-            x_bar = x_bar.permute(1, 0, 2)  # LND -> NLD
-            
-            x_bar = self.ln_post(x_bar)
-            if self.proj is not None:
-                x_bar = x_bar @ self.proj
-            
-            x = torch.cat([self.class_embedding.to(x.dtype) + torch.zeros(x.shape[0], 1, x.shape[-1], dtype=x.dtype, device=x.device), x], dim=1)  # shape = [*, grid ** 2 + 1, width]
-            x = x + pos
-            x = self.ln_pre(x)
-            
-            x = x.permute(1, 0, 2)  # NLD -> LND
-            x, x_ori = self.transformer(x)
-            x[0, :, :] = x_ori[0, :, :] # clip_surgery
-            x = x.permute(1, 0, 2)  # LND -> NLD
-            
-            x = self.ln_post(x)
-            if self.proj is not None:
-                x = x @ self.proj
-
-            return x, x_bar, mask
         
         x = torch.cat([self.class_embedding.to(x.dtype) + torch.zeros(x.shape[0], 1, x.shape[-1], dtype=x.dtype, device=x.device), x], dim=1)  # shape = [*, grid ** 2 + 1, width]
         pos = interpolate_pos_emb(self.positional_embedding, H, W).to(x.dtype)
         x = x + pos
+    
+        if mask_emb is not None:
+            cls_tokens = x[:, :1]
+            x, mask, ids_restore = self.random_masking(x[:, 1:], mask_emb)
+            x = torch.cat((cls_tokens, x), dim=1)
+            
         x = self.ln_pre(x)
 
         x = x.permute(1, 0, 2)  # NLD -> LND
@@ -922,8 +892,11 @@ class VisionTransformer(nn.Module):
         x = self.ln_post(x)
         if self.proj is not None:
             x = x @ self.proj
-
-        return x
+        
+        if mask_emb is not None:
+            return x, mask, ids_restore
+        else:
+            return x
     
     @torch.no_grad()
     def random_masking(self, x, mask_ratio):
@@ -941,13 +914,17 @@ class VisionTransformer(nn.Module):
         ids_shuffle = torch.argsort(noise, dim=1)  # ascend: small is keep, large is remove
         ids_restore = torch.argsort(ids_shuffle, dim=1)
 
+        # keep the first subset
+        ids_keep = ids_shuffle[:, :len_keep]
+        x_masked = torch.gather(x, dim=1, index=ids_keep.unsqueeze(-1).repeat(1, 1, D))
+
         # generate the binary mask: 0 is keep, 1 is remove
         mask = torch.ones([N, L], device=x.device)
         mask[:, :len_keep] = 0
         # unshuffle to get the binary mask
         mask = torch.gather(mask, dim=1, index=ids_restore)
 
-        return mask.unsqueeze(-1)
+        return x_masked, mask, ids_restore
 
 class CLIP(nn.Module):
     def __init__(self,
