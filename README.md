@@ -25,7 +25,7 @@ CC12M
 ```
 We provide the captions of the images in [meta_file]().
 
-For evaluation, please follow the [data preparation section of GroupViT README](https://github.com/NVlabs/GroupViT#data-preparation) to prepare the datasets. Remember to change the image dirs in 'segmentation/configs/_base_/datasets/*.py'.
+For evaluation, please follow the [mmsegmentation](https://github.com/open-mmlab/mmsegmentation/blob/master/docs/en/dataset_prepare.md) to prepare the datasets. Remember to change the image dirs in 'segmentation/configs/_base_/datasets/*.py'.
 
 ## Train and Evaluate
 1. Modify the 'tagalign.yml'. We provide the pre-processed ['tag_file']() and ['label_file'](). 
