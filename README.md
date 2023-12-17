@@ -25,7 +25,7 @@ CC12M
 ```
 In addition, we provide the captions of the images in [meta_file(todo)]().
 
-For evaluation, refer to the [mmsegmentation](https://github.com/open-mmlab/mmsegmentation/blob/master/docs/en/dataset_prepare.md) to properly prepare the datasets. Make sure to update the image directories in segmentation/configs/_base_/datasets/*.py as necessary.
+For evaluation, refer to the [GroupVit](https://github.com/NVlabs/GroupViT) to properly prepare the datasets. Make sure to update the image directories in 'segmentation/configs/_base_/datasets/*.py' as necessary.
 
 ## Train and Evaluate
 1. Modify the 'tagalign.yml'. We provide the processed [tag_file(todo)]() and [label_file(todo)](). 
@@ -38,8 +38,20 @@ For evaluation, refer to the [mmsegmentation](https://github.com/open-mmlab/mmse
    ```
    torchrun --rdzv_endpoint=localhost:6000 --nproc_per_node=auto main.py --cfg configs/eval.yml --eval --resume $WEIGHT
    ```
-   $WEIGHT is the path of the pre-trained checkpoints. We provide our pre-trained [weights(todo]().
+   $WEIGHT is the path of the pre-trained checkpoints. We provide our pre-trained weights in [weights(todo)]().
 
+ ## Citation
+
+ If you find our work to be useful for your research, please consider citing.
+
+```
+@article{liu2023tagalign,
+  title={TagAlign: Improving Vision-Language Alignment with Multi-Tag Classification},
+  author={},
+  journal={},
+  year={2023}
+}
+```
 
  ## References
 
