@@ -23,15 +23,18 @@ CC12M
 ├── 00000440ca9fe337152041e26c37f619ec4c55b2.jpg
 ...
 ```
+We provide the captions of the images in [meta_file]().
 
-For evaluation, please follow the [data preparation section of GroupViT README](https://github.com/NVlabs/GroupViT#data-preparation) to prepare the datasets. Remember to change the image dirs in segmentation/configs/_base_/datasets/*.py.
+For evaluation, please follow the [data preparation section of GroupViT README](https://github.com/NVlabs/GroupViT#data-preparation) to prepare the datasets. Remember to change the image dirs in 'segmentation/configs/_base_/datasets/*.py'.
 
 ## Train and Evaluate
-1. Train the TagAlign model by run 
+1. Modify the 'tagalign.yml'. We provide the pre-processed ['tag_file']() and ['label_file'](). 
+
+2. Train the TagAlign model by run 
    ```
    torchrun --rdzv_endpoint=localhost:6000 --nproc_per_node=auto main.py --cfg configs/tagalign.yml
    ```
-2. You can evaluate the model by running the command below.
+3. You can evaluate the TagAlign model by running the command below.
    ```
    torchrun --rdzv_endpoint=localhost:6000 --nproc_per_node=auto main.py --cfg configs/eval.yml --eval --resume $pre-trained weight path$ 
    ```
@@ -39,8 +42,9 @@ For evaluation, please follow the [data preparation section of GroupViT README](
 
  ## References
 
-* [https://github.com/NVlabs/GroupViT](https://github.com/NVlabs/GroupViT)
-* [https://github.com/kakaobrain/tcl](https://github.com/kakaobrain/tcl)
-
+* [GroupViT](https://github.com/NVlabs/GroupViT)
+* [TCL](https://github.com/kakaobrain/tcl)
+* [CLIP_Surgery](https://github.com/xmed-lab/CLIP_Surgery)
+* [OVSegmentor/](https://github.com/Jazzcharles/OVSegmentor)
 
 
