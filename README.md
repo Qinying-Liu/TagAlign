@@ -14,7 +14,7 @@ This repository is the official implementation of [TagAlign](https://arxiv.org/a
 * torch==1.11.0
 
 ## Data Preparation
-For training, we use the CC12M dataset. The researchers are encouraged to prepare CC12M dataset from the [source](https://github.com/google-research-datasets/conceptual-12m) or using [img2dataset](https://github.com/rom1504/img2dataset). The file structure should follow:
+For the training phase, we utilize the CC12M dataset. Researchers can procure the CC12M dataset either directly from its [source](https://github.com/google-research-datasets/conceptual-12m) or by employing the [img2dataset](https://github.com/rom1504/img2dataset) tool. The dataset should adhere to the following file structure:
 
 ```shell
 CC12M
@@ -23,12 +23,12 @@ CC12M
 ├── 00000440ca9fe337152041e26c37f619ec4c55b2.jpg
 ...
 ```
-We provide the captions of the images in [meta_file]().
+In addition, we provide the captions of the images in [meta_file(todo)]().
 
-For evaluation, please follow the [mmsegmentation](https://github.com/open-mmlab/mmsegmentation/blob/master/docs/en/dataset_prepare.md) to prepare the datasets. Remember to change the image dirs in 'segmentation/configs/_base_/datasets/*.py'.
+For evaluation, refer to the [mmsegmentation](https://github.com/open-mmlab/mmsegmentation/blob/master/docs/en/dataset_prepare.md) to properly prepare the datasets. Make sure to update the image directories in segmentation/configs/_base_/datasets/*.py as necessary.
 
 ## Train and Evaluate
-1. Modify the 'tagalign.yml'. We provide the pre-processed ['tag_file']() and ['label_file'](). 
+1. Modify the 'tagalign.yml'. We provide the processed [tag_file(todo)]() and [label_file(todo)](). 
 
 2. Train the TagAlign model by run 
    ```
@@ -36,8 +36,9 @@ For evaluation, please follow the [mmsegmentation](https://github.com/open-mmlab
    ```
 3. You can evaluate the TagAlign model by running the command below.
    ```
-   torchrun --rdzv_endpoint=localhost:6000 --nproc_per_node=auto main.py --cfg configs/eval.yml --eval --resume $pre-trained weight path$ 
+   torchrun --rdzv_endpoint=localhost:6000 --nproc_per_node=auto main.py --cfg configs/eval.yml --eval --resume $WEIGHT
    ```
+   $WEIGHT is the path of the pre-trained checkpoints. We provide our pre-trained [weights(todo]().
 
 
  ## References
