@@ -1,9 +1,0 @@
-*.pyc
-.vscode
-__pycache__
-output
-.ipynb_checkpoints
-notebooks
-tcp-checker
-checkpoints/
-data/
