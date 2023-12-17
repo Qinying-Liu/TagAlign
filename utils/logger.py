@@ -1,11 +1,3 @@
-# ------------------------------------------------------------------------------
-# TCL
-# Copyright (c) 2023 Kakao Brain. All Rights Reserved.
-# ------------------------------------------------------------------------------
-# Modified from Swin Transformer (https://github.com/microsoft/Swin-Transformer)
-# Copyright (c) 2021 Microsoft. All Rights Reserved.
-# ------------------------------------------------------------------------------
-
 import logging
 import os.path as osp
 

@@ -1,19 +1,10 @@
-# ------------------------------------------------------------------------------
-# TCL
-# Copyright (c) 2023 Kakao Brain. All Rights Reserved.
-# ------------------------------------------------------------------------------
-# Modified from GroupViT (https://github.com/NVlabs/GroupViT)
-# Copyright (c) 2021-22, NVIDIA Corporation & affiliates. All Rights Reserved.
-# ------------------------------------------------------------------------------
 import mmcv
 import yaml
 import torch
-from mmseg.datasets import build_dataloader, build_dataset
-from mmseg.datasets.pipelines import Compose
 from omegaconf import OmegaConf
 from datasets import get_template
 
-from .tcl_seg import TCLSegInference
+from .tagalign_seg import TagAlignSegInference
 
 
 def build_dataset_class_tokens(text_transform, template_set, classnames):
@@ -29,14 +20,23 @@ def build_dataset_class_tokens(text_transform, template_set, classnames):
     return tokens
 
 
-def build_seg_dataset(config):
+def build_seg_dataset(config, key):
     """Build a dataset from config."""
     cfg = mmcv.Config.fromfile(config)
+    if 'ImageNet' in key:
+        from mmsegmentation_obsolete.mmseg.datasets import build_dataset
+    else:
+        from mmseg.datasets import build_dataset
+
     dataset = build_dataset(cfg.data.test)
     return dataset
 
 
-def build_seg_dataloader(dataset):
+def build_seg_dataloader(dataset, key):
+    if 'ImageNet' in key:
+        from mmsegmentation_obsolete.mmseg.datasets import build_dataloader
+    else:
+        from mmseg.datasets import build_dataloader
     # batch size is set to 1 to handle varying image size (due to different aspect ratio)
     data_loader = build_dataloader(
         dataset,
@@ -70,8 +70,8 @@ def build_seg_inference(
         kwargs["test_cfg"] = dset_cfg.test_cfg
 
     model_type = config.model.type
-    if model_type == "TCL":
-        seg_model = TCLSegInference(model, text_embedding, **kwargs, **config.evaluate)
+    if model_type == "TagAlign":
+        seg_model = TagAlignSegInference(model, text_embedding, **kwargs, **config.evaluate)
     else:
         raise ValueError(model_type)
 

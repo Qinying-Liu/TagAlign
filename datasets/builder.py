@@ -61,7 +61,7 @@ import shutil
 
 from .formatting import ToDataContainer
 from .tokenizer import SimpleTokenizer
-from .clip_dataset import ClipDataset
+# from .clip_dataset import ClipDataset
 from ipdb import set_trace
 
 from sclip.clip import tokenize
@@ -109,6 +109,7 @@ def build_loader(config):
 
 
 def build_dataset(config):
+    from .clip_dataset import ClipDataset
     img_transform = build_img_transform(True, config.img_aug)
     text_transform = build_text_transform()
     split = 'train'

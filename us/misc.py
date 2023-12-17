@@ -1,7 +1,3 @@
-# ------------------------------------------------------------------------------
-# TCL
-# Copyright (c) 2023 Kakao Brain. All Rights Reserved.
-# ------------------------------------------------------------------------------
 from typing import Dict, List, Any
 from datetime import datetime
 from itertools import chain
@@ -16,7 +12,6 @@ import numpy as np
 IMAGENET_DEFAULT_MEAN = (0.485, 0.456, 0.406)
 IMAGENET_DEFAULT_STD = (0.229, 0.224, 0.225)
 
-# set TCL default mean/std
 DEFAULT_MEAN = IMAGENET_DEFAULT_MEAN
 DEFAULT_STD = IMAGENET_DEFAULT_STD
 

@@ -1,10 +1,3 @@
-# ------------------------------------------------------------------------------
-# TCL
-# Copyright (c) 2023 Kakao Brain. All Rights Reserved.
-# ------------------------------------------------------------------------------
-# Modified from GroupViT (https://github.com/NVlabs/GroupViT)
-# Copyright (c) 2021-22, NVIDIA Corporation & affiliates. All Rights Reserved.
-# ------------------------------------------------------------------------------
 import argparse
 import datetime
 import os
@@ -54,7 +47,7 @@ def cyclize(loader):
 
 
 def get_argparser():
-    parser = argparse.ArgumentParser("TCL training and evaluation script")
+    parser = argparse.ArgumentParser("TagAlign training and evaluation script")
     parser.add_argument("--cfg", type=str, help="path to config file")
     parser.add_argument(
         "--opts", help="Modify config options by adding 'KEY=VALUE' list. ", default=None, nargs="+"
@@ -76,14 +69,11 @@ def get_argparser():
 
 
 def train(cfg):
-    # if not cfg.model.clip_model.lower().startswith("vit"):
-    #     raise ValueError("Current TCL only supports ViT backbone of CLIP.")
-
     if cfg.wandb and dist.get_rank() == 0:
         import wandb
 
         wandb.init(
-            project="tcl",
+            project="tagalign",
             name=osp.join(cfg.model_name, cfg.tag),
             dir=cfg.output,
             config=OmegaConf.to_container(cfg, resolve=True),
@@ -99,22 +89,22 @@ def train(cfg):
 
     # build validation loaders
     val_loaders = {}
-    # for key in cfg.evaluate.task:
-    #     if key == "cls":
-    #         continue
+    for key in cfg.evaluate.task:
+        if key == "cls":
+            continue
 
-    #     loader = build_seg_dataloader(build_seg_dataset(cfg.evaluate.get(key)))
-    #     val_loaders[key] = loader
+        loader = build_seg_dataloader(build_seg_dataset(cfg.evaluate.get(key), key), key)
+        val_loaders[key] = loader
 
     logger = get_logger()
 
     # build model & optimizer
     logger.info(f"Creating model:{cfg.model.type}/{cfg.model_name}")
     model = build_model(cfg.model)
-    model.class_freq = dataset_train.class_freq
+    model.class_weights = dataset_train.class_freq
     model.cuda()
 
-    model.set_train(decoder_only=(cfg.train.ust_steps > 0), config=cfg)
+    model.set_train()
     optimizer = build_optimizer(cfg.train, model)
     model = MMDistributedDataParallel(
         model,
@@ -176,12 +166,6 @@ def do_training(config, model, data_loader, optimizer, lr_scheduler, scaler, val
     log_vars_meters = defaultdict(AverageMeter)
 
     total_steps = config.train.total_steps
-    org_total_steps = total_steps
-    # update training steps by evaluation step (discard non-evaluation steps)
-    # total_steps = total_steps - (total_steps % config.evaluate.eval_freq) + 1
-    if org_total_steps != total_steps:
-        logger.info(f"Total step is updated: {org_total_steps} -> {total_steps}")
-
     ckpt_manager = CheckpointManager(config.checkpoint.save_topk, config.output)
 
     ust_check = True
@@ -189,10 +173,6 @@ def do_training(config, model, data_loader, optimizer, lr_scheduler, scaler, val
     for step, samples in enumerate(cyclize(data_loader), config.train.start_step):
         if step >= total_steps:
             break
-        # if ust_check and config.train.ust_steps and step >= config.train.ust_steps:
-        #     model.module.set_train(decoder_only=False, config=config)
-        #     logger.info(f" -- [{step}] UST stage is DONE; Now fine-tuning stage begins ...")
-        #     ust_check = False
 
         batch_size = config.data.batch_size
         caption = samples["caption"]
@@ -249,30 +229,11 @@ def do_training(config, model, data_loader, optimizer, lr_scheduler, scaler, val
                 log_stat["iter/learning_rate"] = lr
                 log_stat["iter/epoch"] = epoch
                 log_stat["iter/grad_scale"] = scaler.get_scale()
-
-                # image & mask logging
-                if "mask" in losses and step % 500 == 0:
-                    N = 3
-
-                    # un-normalize image
-                    org_img = us.unnorm(samples["image"][:N])
-                    org_img = torch.clamp(org_img, 0.0, 1.0)  # random erasing makes out-of-range value
-                    mask = losses["mask"][:N].repeat(1, 3, 1, 1).cpu().float()
-                    mask = F.interpolate(mask, org_img.shape[2:]) > 0.5
-                    log_images = [org_img, mask, org_img * mask]
-                    if "neg_mask" in losses:
-                        neg_mask = losses["neg_mask"][:N, :1].repeat(1, 3, 1, 1).cpu().float()
-                        neg_mask = F.interpolate(neg_mask, org_img.shape[2:]) > 0.5
-                        log_images.append(neg_mask)
-
-                    log_images = torch.cat(log_images)
-                    grid = make_grid(log_images, nrow=N, value_range=(0, 1))
-                    cap = "\n".join([f"[{i}] {c}" for i, c in enumerate(caption[:N])])
-                    log_stat["examples"] = wandb.Image(grid, caption=cap)
-
                 wandb.log(log_stat, step=step)
 
+
         if step and step % config.evaluate.eval_freq == 0:
+            metrics = evaluate(config, model, val_loaders)
             if us.is_global_zero():
                 ckpt_kwargs = {
                     "config": config,
@@ -281,52 +242,27 @@ def do_training(config, model, data_loader, optimizer, lr_scheduler, scaler, val
                     "optimizer": optimizer,
                     "lr_scheduler": lr_scheduler,
                     "scaler": scaler,
+                    "metrics": metrics,
                 }
                 # save latest to "checkpoint.pth"
-                # save_checkpoint(**ckpt_kwargs)
+                save_checkpoint(**ckpt_kwargs)
                 # save all
                 if config.checkpoint.save_all:
                     save_checkpoint(**ckpt_kwargs, filename=f"ckpt_{step}.pth")
+                # save best
+                if config.checkpoint.save_topk:
+                    miou = metrics["val/avg_miou"]
+                    ckpt_manager.add(miou, ckpt_kwargs, step)
             dist.barrier()
+
+            if wandb is not None:
+                wandb.log(metrics, step=step)
 
             batch_time.reset()
             loss_meter.reset()
             norm_meter.reset()
             for m in log_vars_meters.values():
                 m.reset()
-
-        # if step and step % config.evaluate.eval_freq == 0:
-        #     metrics = evaluate(config, model, val_loaders)
-
-        #     if us.is_global_zero():
-        #         ckpt_kwargs = {
-        #             "config": config,
-        #             "step": step,
-        #             "model": model,
-        #             "optimizer": optimizer,
-        #             "lr_scheduler": lr_scheduler,
-        #             "scaler": scaler,
-        #             "metrics": metrics,
-        #         }
-        #         # save latest to "checkpoint.pth"
-        #         save_checkpoint(**ckpt_kwargs)
-        #         # save all
-        #         if config.checkpoint.save_all:
-        #             save_checkpoint(**ckpt_kwargs, filename=f"ckpt_{step}.pth")
-        #         # save best
-        #         if config.checkpoint.save_topk:
-        #             miou = metrics["val/avg_miou"]
-        #             ckpt_manager.add(miou, ckpt_kwargs, step)
-        #     dist.barrier()
-
-        #     if wandb is not None:
-        #         wandb.log(metrics, step=step)
-
-        #     batch_time.reset()
-        #     loss_meter.reset()
-        #     norm_meter.reset()
-        #     for m in log_vars_meters.values():
-        #         m.reset()
 
 
 @torch.no_grad()
@@ -343,6 +279,12 @@ def evaluate(cfg, model, val_loaders):
         logger.info(f"### Validation dataset: {key} ({dataset_class})")
 
         miou, metrics = validate_seg(cfg, cfg.evaluate.get(key), loader, model)
+
+        # if dist.get_rank() == 0:
+        #     dir_name = os.path.dirname(cfg.checkpoint.resume)
+        #     thresh = cfg.evaluate.bg_thresh
+        #     with open('{}/dataset_{}_th_{:.4f}_miou_{:.4f}.txt'.format(dir_name, key, thresh, miou), 'w') as f:
+        #         f.write('dataset_{}_miou_{:.4f}\n'.format(key, miou))
 
         logger.info(f"[{key}] mIoU of {len(loader.dataset)} test images: {miou:.2f}%")
         ret[f"val/{key}_miou"] = miou
@@ -409,13 +351,13 @@ def main():
     if args.resume and args.eval:
         # update config when resume
         # default config -> org config -> eval config
-        default_cfg = load_config("configs/tcl.yml")
+        default_cfg = load_config("configs/tagalign.yml")
         org_cfg_path = Path(args.resume).parent / "config.json"
         if org_cfg_path.exists():
             org_cfg = OmegaConf.load(Path(args.resume).parent / "config.json")
         else:
             org_cfg = OmegaConf.create()  # empty container
-        eval_cfg = OmegaConf.load("configs/eval.yml")
+        eval_cfg = OmegaConf.load(args.cfg)
         cfg = OmegaConf.merge(default_cfg, org_cfg, eval_cfg)
         if args.opts is not None:
             cfg = OmegaConf.merge(cfg, OmegaConf.from_dotlist(args.opts))
@@ -423,7 +365,7 @@ def main():
         cfg.checkpoint.resume = args.resume
         cfg.wandb = False
         cfg.evaluate.eval_only = args.eval
-        cfg.output = "output/eval"
+        cfg.output = os.path.join(os.path.dirname(cfg.checkpoint.resume), 'eval')
     else:
         cfg = get_config(args)
 

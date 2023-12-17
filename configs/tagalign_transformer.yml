@@ -1,0 +1,76 @@
+_base_: "default.yml"
+data:
+  batch_size: 512
+  dataset:
+    train:
+      - gcc3m
+      - gcc12m
+  train: 
+      root_dir: [
+                 'pcache://vilabpcacheproxyi-pool.cz50c.alipay.com:39999/mnt/',
+                ]
+      meta_file: [
+                  '../data/CC12M/CC12M_meta.csv', 
+                 ]
+      read_from: dir
+      use_dali: True
+      # batch_size: 256
+      input_size: 224
+      test_resize: 256
+
+      image_reader:
+          type: pil
+      sampler:
+          type: distributed_epoch
+      transforms:
+          type: STANDARD
+      fseek: False
+
+      tag_file: [
+        '../data/CC12M/CC12M_meta_nouns_index.json', 
+        ]
+      num_tags: 10000
+      label_file: '../data/CC12M/CC12M_textual_top10000_label_embedding.pth' 
+      
+
+model:
+  type: TagAlign
+  clip_model: ../packs/ViT-B-16.pt  
+  use_clip_surgery: true  # use clip surgery
+  ie_ignore_last_attn: false  # use MaskCLIP
+
+  projector:
+    type: Transformer
+    n_layers: 1
+    n_heads: 16
+    mlp_ratio: 4
+
+  cl_w: 1.0 # image-text contrastive loss
+  ce_w: 1.0 # tag classification loss
+  label_file: ${data.train.label_file}
+
+train:
+  total_steps: 30001
+  base_lr: 1e-3
+  weight_decay: 0.05
+  clip_grad: 5.0
+  optimizer:
+    eps: 1e-6
+  lr_scheduler:
+    name: constant
+
+evaluate:
+  bg_thresh: 0.4
+  clip_w: 0.0
+  scale: 10
+  bias: -2.5
+
+  eval_freq: 5000
+  template: simple
+  task:
+    - cls
+
+checkpoint:
+  save_topk: 0
+
+model_name: "release"

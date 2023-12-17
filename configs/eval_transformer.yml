@@ -1,3 +1,10 @@
+model:
+  projector:
+    type: Transformer
+    n_layers: 1
+    n_heads: 16
+    mlp_ratio: 4
+
 evaluate:
   bg_thresh: 0.4
   clip_w: 0.3

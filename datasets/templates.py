@@ -1,11 +1,3 @@
-# ------------------------------------------------------------------------------
-# TCL
-# Copyright (c) 2023 Kakao Brain. All Rights Reserved.
-# ------------------------------------------------------------------------------
-# Modified from CLIP (https://github.com/openai/CLIP)
-# Copyright (c) 2021 OpenAI. All Rights Reserved.
-# ------------------------------------------------------------------------------
-
 def article(name):
     return "a"
 

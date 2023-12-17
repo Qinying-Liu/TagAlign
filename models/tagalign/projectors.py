@@ -1,11 +1,7 @@
-# ------------------------------------------------------------------------------
-# TCL
-# Copyright (c) 2023 Kakao Brain. All Rights Reserved.
-# ------------------------------------------------------------------------------
 import torch.nn as nn
 
 from models.builder import MODELS
-from models.tcl.modules import ResConv
+from models.tagalign.modules import ResConv
 
 
 @MODELS.register_module()
