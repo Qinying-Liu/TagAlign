@@ -7,10 +7,10 @@ data:
       - gcc12m
   train: 
       root_dir: [
-                 'pcache://vilabpcacheproxyi-pool.cz50c.alipay.com:39999/mnt/',
+                 'todo',
                 ]
       meta_file: [
-                  '../data/CC12M/CC12M_meta.csv', 
+                  'todo', 
                  ]
       read_from: dir
       use_dali: True
@@ -27,10 +27,10 @@ data:
       fseek: False
 
       tag_file: [
-        '../data/CC12M/CC12M_meta_nouns_index.json', 
+        'todo', 
         ]
       num_tags: 10000
-      label_file: '../data/CC12M/CC12M_textual_top10000_label_embedding.pth' 
+      label_file: 'todo' 
       
 
 model:
