@@ -10,7 +10,7 @@ data:
                  #root of the raw images,
                 ]
       meta_file: [
-                  # file of the image captions', 
+                  #file of the image captions, 
                  ]
       read_from: dir
       use_dali: True
@@ -75,4 +75,4 @@ evaluate:
 checkpoint:
   save_topk: 0
 
-model_name: "temp"
+model_name: "cnn"

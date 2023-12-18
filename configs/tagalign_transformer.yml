@@ -6,10 +6,10 @@ data:
       - gcc12m
   train: 
       root_dir: [
-                 '',
+                 #root of the raw images,
                 ]
       meta_file: [
-                  '', 
+                  #file of the image captions,
                  ]
       read_from: dir
       use_dali: True
@@ -26,10 +26,10 @@ data:
       fseek: False
 
       tag_file: [
-        'todo', 
+        # file that contains the tag indices of the images,
         ]
-      num_tags: 10000
-      label_file: 'todo' 
+      num_tags: 10000  # number of tags 
+      label_file: # the embedding of the tags 
       
 
 model:
@@ -72,4 +72,4 @@ evaluate:
 checkpoint:
   save_topk: 0
 
-model_name: "temp"
+model_name: "transformer"
