@@ -1,6 +1,19 @@
-# TagAlign: Improving Vision-Language Alignment with Multi-Tag Classification
+# TagAlign - Official Pytorch Implementation
 
-This repository is the official implementation of [TagAlign](https://arxiv.org/abs/2301.09121).
+> **TagAlign: Improving Vision-Language Alignment with Multi-Tag Classification** <br>
+> Qinying Liu, Kecheng Zheng, Wei Wu, Zhan Tong, Yu Liu, Wei Chen, Zilei Wang, Yujun Shen<br>
+
+[![](https://img.shields.io/badge/CVPR-2023-blue)](https://cvpr.thecvf.com/Conferences/2023)
+[![Paper](https://img.shields.io/badge/Paper-BECO.pdf-red)](https://openaccess.thecvf.com/content/CVPR2023/papers/Rong_Boundary-Enhanced_Co-Training_for_Weakly_Supervised_Semantic_Segmentation_CVPR_2023_paper.pdf)
+
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/tagalign-improving-vision-language-alignment/unsupervised-semantic-segmentation-with-4)](https://paperswithcode.com/sota/unsupervised-semantic-segmentation-with-4?p=tagalign-improving-vision-language-alignment)
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/tagalign-improving-vision-language-alignment/unsupervised-semantic-segmentation-with-3)](https://paperswithcode.com/sota/unsupervised-semantic-segmentation-with-3?p=tagalign-improving-vision-language-alignment)
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/tagalign-improving-vision-language-alignment/unsupervised-semantic-segmentation-with-10)](https://paperswithcode.com/sota/unsupervised-semantic-segmentation-with-10?p=tagalign-improving-vision-language-alignment)
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/tagalign-improving-vision-language-alignment/unsupervised-semantic-segmentation-with-9)](https://paperswithcode.com/sota/unsupervised-semantic-segmentation-with-9?p=tagalign-improving-vision-language-alignment)
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/tagalign-improving-vision-language-alignment/unsupervised-semantic-segmentation-with-8)](https://paperswithcode.com/sota/unsupervised-semantic-segmentation-with-8?p=tagalign-improving-vision-language-alignment)
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/tagalign-improving-vision-language-alignment/unsupervised-semantic-segmentation-with-7)](https://paperswithcode.com/sota/unsupervised-semantic-segmentation-with-7?p=tagalign-improving-vision-language-alignment)
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/tagalign-improving-vision-language-alignment/open-vocabulary-semantic-segmentation-on-5)](https://paperswithcode.com/sota/open-vocabulary-semantic-segmentation-on-5?p=tagalign-improving-vision-language-alignment)
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/tagalign-improving-vision-language-alignment/open-vocabulary-semantic-segmentation-on-1)](https://paperswithcode.com/sota/open-vocabulary-semantic-segmentation-on-1?p=tagalign-improving-vision-language-alignment)
 
 <div align="center">
 <img src="figs/pipeline.png" width="100%">
