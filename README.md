@@ -3,7 +3,7 @@
 > **TagAlign: Improving Vision-Language Alignment with Multi-Tag Classification** <br>
 > Qinying Liu, Kecheng Zheng, Wei Wu, Zhan Tong, Yu Liu, Wei Chen, Zilei Wang, Yujun Shen<br>
 
-[![Paper](https://img.shields.io/badge/Paper-TagAlign.pdf-red)](https://arxiv.org/abs/2312.14149)
+[![Arxiv](https://img.shields.io/badge/Arxiv-TagAlign.pdf-red)](https://arxiv.org/pdf/2312.14149.pdf)
 
 [![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/tagalign-improving-vision-language-alignment/unsupervised-semantic-segmentation-with-4)](https://paperswithcode.com/sota/unsupervised-semantic-segmentation-with-4?p=tagalign-improving-vision-language-alignment)
 [![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/tagalign-improving-vision-language-alignment/unsupervised-semantic-segmentation-with-3)](https://paperswithcode.com/sota/unsupervised-semantic-segmentation-with-3?p=tagalign-improving-vision-language-alignment)
