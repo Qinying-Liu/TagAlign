@@ -83,6 +83,6 @@ For evaluation, refer to the [GroupVit](https://github.com/NVlabs/GroupViT) to p
  ## ❤️ Acknowledgements
 
 * [TCL](https://github.com/kakaobrain/tcl): The codebase we built upon. Thanks for their wonderful work.
-* [CLIP_Surgery](https://github.com/xmed-lab/CLIP_Surgery): An effective strategy for enhancing the fine-grained localization capabilities of CLIP is to refine the training-free approach.
+* [CLIP_Surgery](https://github.com/xmed-lab/CLIP_Surgery): An effective training-free strategy for enhancing the fine-grained localization capabilities of CLIP.
 
 
