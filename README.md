@@ -59,8 +59,8 @@ For evaluation, refer to the [GroupVit](https://github.com/NVlabs/GroupViT) to p
 ```
 @article{liu2023tagalign,
   title={TagAlign: Improving Vision-Language Alignment with Multi-Tag Classification},
-  author={},
-  journal={},
+  author={Liu, Qinying and Zheng, Kecheng and Wei, Wu and Tong, Zhan and Liu, Yu and Chen, Wei and Wang, Zilei and Shen, Yujun},
+  journal={arXiv preprint arXiv:2312.14149},
   year={2023}
 }
 ```
