@@ -39,7 +39,7 @@
 * mmsegmentation==0.21.1
 * torch==1.11.0
 
-#### Data Preparation
+### Data Preparation
 For the training phase, we utilize the CC12M dataset. Researchers can procure the CC12M dataset either directly from its [source](https://github.com/google-research-datasets/conceptual-12m) or by employing the [img2dataset](https://github.com/rom1504/img2dataset) tool. The dataset should adhere to the following file structure:
 
 ```shell
