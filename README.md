@@ -17,8 +17,9 @@
 <div align="center">
 <img src="figs/pipeline.png" width="100%">
 </div>
+
 ## 📜 News
-[2023/12/7] The [paper](https://arxiv.org/abs/2312.14149) and [project page](https://qinying-liu.github.io/Tag-Align/) are released!
+[2023/12/25] The [paper](https://arxiv.org/abs/2312.14149) and [project page](https://qinying-liu.github.io/Tag-Align/) are released!
 
 ## 💡 Highlights
 - 🔥 **3.65%** mIOU improvement on a broad suite of semantic segmentation datasets (VOC: PASCAL VOC, Context: PASCAL Context, Object: COCO-Object, IN: ImageNet-S, Stuff: COCO-Stuff, City: Cityscapes, ADE: ADE20K).
