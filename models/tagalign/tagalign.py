@@ -50,7 +50,7 @@ class TagAlign(nn.Module):
                 ("clip_proj", clip_proj)
                 ]))
 
-        # self.label_embedding = nn.Parameter(torch.load(label_file, map_location='cpu').float(), requires_grad=False)
+        self.label_embedding = nn.Parameter(torch.load(label_file, map_location='cpu').float(), requires_grad=False)
 
         self.cl_w = cl_w
         self.cl_loss = InfoNCE() if cl_w else None

@@ -85,7 +85,7 @@ def train(cfg):
     dist.barrier()
 
     # build datasets
-    # dataset_train, data_loader_train = build_loader(cfg.data)
+    dataset_train, data_loader_train = build_loader(cfg.data)
 
     # build validation loaders
     val_loaders = {}
@@ -101,7 +101,7 @@ def train(cfg):
     # build model & optimizer
     logger.info(f"Creating model:{cfg.model.type}/{cfg.model_name}")
     model = build_model(cfg.model)
-    # model.class_weights = dataset_train.class_freq
+    model.class_weights = dataset_train.class_freq
     model.cuda()
 
     model.set_train()
@@ -279,12 +279,6 @@ def evaluate(cfg, model, val_loaders):
         logger.info(f"### Validation dataset: {key} ({dataset_class})")
 
         miou, metrics = validate_seg(cfg, cfg.evaluate.get(key), loader, model)
-
-        # if dist.get_rank() == 0:
-        #     dir_name = os.path.dirname(cfg.checkpoint.resume)
-        #     thresh = cfg.evaluate.bg_thresh
-        #     with open('{}/dataset_{}_th_{:.4f}_miou_{:.4f}.txt'.format(dir_name, key, thresh, miou), 'w') as f:
-        #         f.write('dataset_{}_miou_{:.4f}\n'.format(key, miou))
 
         logger.info(f"[{key}] mIoU of {len(loader.dataset)} test images: {miou:.2f}%")
         ret[f"val/{key}_miou"] = miou
