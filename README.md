@@ -19,7 +19,7 @@
 </div>
 
 ## 📜 News
-- [2024/03/31] The [paper](https://arxiv.org/abs/2312.14149) and [project page](https://qinying-liu.github.io/Tag-Align/) are updated with improved performance! 
+- [2024/03/31] The [paper](https://arxiv.org/abs/2312.14149) and [project page](https://qinying-liu.github.io/Tag-Align/) are updated. This version of TagAlign has improved performance! 
 - [2023/12/25] The [paper](https://arxiv.org/abs/2312.14149) and [project page](https://qinying-liu.github.io/Tag-Align/) are released!
 
 ## 💡 Highlights
