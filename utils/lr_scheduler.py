@@ -13,7 +13,7 @@ def build_scheduler(config, optimizer):
         cos_sched = CosineAnnealingLR(optimizer, T_max=num_steps - warmup_steps, eta_min=min_lr)
         lr_scheduler = SequentialLR(optimizer, [warmup_sched, cos_sched], milestones=[warmup_steps])
     elif config.lr_scheduler.name == "constant":
-        lr_lambda = lambda epoch: 1.0 
+        lr_lambda = lambda epoch: 1.0  
         lr_scheduler = LambdaLR(optimizer, lr_lambda=lr_lambda)
     else:
         raise NotImplementedError(f"lr scheduler {config.lr_scheduler.name} not implemented")

@@ -1,21 +1,16 @@
 evaluate:
-  bg_thresh: 0.4
-  clip_w: 0.3
-  scale: 10
-  bias: -2.5
-
   eval_only: true
   template: simple 
   task:
     # - imagenets50
-    # - imagenets300
+    - imagenets300
     # - imagenets919
     # - voc
     # - context
     # - coco_object
     # - coco_stuff
     # - context59
-    - voc20
+    # - voc20
     # - cityscapes
     # - ade20k
 

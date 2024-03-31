@@ -85,7 +85,7 @@ def train(cfg):
     dist.barrier()
 
     # build datasets
-    dataset_train, data_loader_train = build_loader(cfg.data)
+    # dataset_train, data_loader_train = build_loader(cfg.data)
 
     # build validation loaders
     val_loaders = {}
@@ -101,7 +101,7 @@ def train(cfg):
     # build model & optimizer
     logger.info(f"Creating model:{cfg.model.type}/{cfg.model_name}")
     model = build_model(cfg.model)
-    model.class_weights = dataset_train.class_freq
+    # model.class_weights = dataset_train.class_freq
     model.cuda()
 
     model.set_train()

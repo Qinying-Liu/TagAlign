@@ -15,7 +15,7 @@ from timm.models.vision_transformer import Block
 @MODELS.register_module()
 class TagAlign(nn.Module):
     def __init__(
-        self, clip_model, ie_ignore_last_attn, use_clip_surgery, projector, cl_w, ce_w, label_file
+        self, clip_model, ie_ignore_last_attn, use_clip_surgery, decoder, cl_w, ce_w, label_file
     ):
         super().__init__()
 
@@ -27,29 +27,30 @@ class TagAlign(nn.Module):
         )
         self.patch_size = self.clip_image_encoder.patch_size
         self.embed_dim = self.clip_image_encoder.clip_visual.embed_dim
-        self.projector_cfg = projector
-        if projector['type'] == 'GDecoder':
+        self.projector_cfg = decoder
+        if decoder['type'] == 'GDecoder':
             clip_proj = self.clip_image_encoder.clone_proj()
-            projector["C"] = self.embed_dim
-            self.projector = MODELS.build(projector)
-            self.projector = nn.Sequential(OrderedDict([
-                ("projector", self.projector),
-                ("clip_proj", clip_proj)
+            decoder["C"] = self.embed_dim
+            decoder = MODELS.build(decoder)
+            decoder = nn.Sequential(OrderedDict([
+                ("decoder", decoder),
+                ("image_proj", clip_proj)
                 ]))
+            self.decoder = decoder
         else:
             clip_proj = self.clip_image_encoder.clone_proj()
-            n_layers = projector['n_layers']
-            n_heads = projector['n_heads']
-            mlp_ratio = projector['mlp_ratio']
+            n_layers = decoder['n_layers']
+            n_heads = decoder['n_heads']
+            mlp_ratio = decoder['mlp_ratio']
             block_list = [
                 Block(self.embed_dim, n_heads, mlp_ratio, qkv_bias=True, norm_layer=nn.LayerNorm) for _ in range(n_layers)]
-            self.projector = nn.Sequential(*block_list)
-            self.projector = nn.Sequential(OrderedDict([
-                ("projector", self.projector),
+            decoder = nn.Sequential(*block_list)
+            self.decoder = nn.Sequential(OrderedDict([
+                ("decoder", decoder),
                 ("clip_proj", clip_proj)
                 ]))
 
-        self.label_embedding = nn.Parameter(torch.load(label_file, map_location='cpu').float(), requires_grad=False)
+        # self.label_embedding = nn.Parameter(torch.load(label_file, map_location='cpu').float(), requires_grad=False)
 
         self.cl_w = cl_w
         self.cl_loss = InfoNCE() if cl_w else None
@@ -67,7 +68,7 @@ class TagAlign(nn.Module):
         # CLIP encoders are always frozen
         self.clip_image_encoder.eval()
         self.clip_text_encoder.eval()
-        self.projector.train()
+        self.decoder.train()
 
 
     def set_train(self, ):
@@ -76,7 +77,7 @@ class TagAlign(nn.Module):
         # freeze clip encoders
         self.clip_image_encoder.requires_grad_(False)
         self.clip_text_encoder.requires_grad_(False)
-        self.projector.requires_grad_(True)
+        self.decoder.requires_grad_(True)
     
 
     def forward(self, image, text, tag):
@@ -88,11 +89,11 @@ class TagAlign(nn.Module):
             h = H // self.patch_size
             w = W // self.patch_size
             patch_feats = rearrange(clip_image_feats[:, 1:], "B (H W) C -> B C H W", H=h, W=w)
-            patch_feats = self.projector(patch_feats)
+            patch_feats = self.decoder(patch_feats)
             image_feat = patch_feats.mean(dim=(2, 3))
         else:
             patch_feats = clip_image_feats[:, 1:]
-            patch_feats = self.projector(patch_feats)
+            patch_feats = self.decoder(patch_feats)
             image_feat = patch_feats.mean(dim=1)
 
         with torch.no_grad():
@@ -133,7 +134,7 @@ class TagAlign(nn.Module):
 
     @torch.no_grad()
     def generate_masks(
-        self, image, text_emb, clip_w=0.3, scale=10, bias=-2.5
+        self, image, text_emb, clip_w=0.0, scale=30,
     ):
         H, W = image.shape[2:]  
         h = H // self.patch_size
@@ -141,25 +142,24 @@ class TagAlign(nn.Module):
 
         clip_image_feats = self.clip_image_encoder(image)
         if self.projector_cfg['type'] == 'GDecoder':
-            patch_feats = rearrange(clip_image_feats[:, 1:], "B (H W) C -> B C H W", H=h, W=w)
-            patch_feats = self.projector(patch_feats)
+            clip_patch_feats = rearrange(clip_image_feats[:, 1:], "B (H W) C -> B C H W", H=h, W=w)
+            patch_feats = self.decoder(clip_patch_feats)
         else:
-            patch_feats = clip_image_feats[:, 1:]
-            patch_feats = self.projector(patch_feats)
+            clip_patch_feats = clip_image_feats[:, 1:]
+            patch_feats = self.decoder(clip_patch_feats)
             patch_feats = rearrange(patch_feats, "B (H W) C -> B C H W", H=h, W=w)
         
         text_emb = us.normalize(text_emb, dim=-1)  # NC
 
         patch_feats = us.normalize(patch_feats, dim=1)  # BCHW
         simmap = torch.einsum("b c h w, n c -> b n h w", patch_feats, text_emb)
-        mask = torch.sigmoid(simmap * scale + bias)
+        mask = torch.softmax(simmap * scale, dim=1)
 
         if clip_w > 0:
-            patch_feats = rearrange(clip_image_feats[:, 1:], "B (H W) C -> B C H W", H=h, W=w)
-            patch_feats = self.clip_image_encoder.clip_proj(patch_feats)
-            patch_feats = us.normalize(patch_feats, dim=1)  # BCHW
-            clip_simmap = torch.einsum("b c h w, n c -> b n h w", patch_feats, text_emb)
-            clip_mask = torch.sigmoid(clip_simmap * scale + bias) 
+            clip_patch_feats = self.clip_image_encoder.clip_proj(clip_patch_feats)
+            clip_patch_feats = us.normalize(clip_patch_feats, dim=1)  # BCHW
+            clip_simmap = torch.einsum("b c h w, n c -> b n h w", clip_patch_feats, text_emb)
+            clip_mask = torch.softmax(clip_simmap * scale, dim=1)
             mask = (1 - clip_w) * mask + clip_w * clip_mask
 
         # resize

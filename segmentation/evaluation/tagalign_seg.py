@@ -11,10 +11,6 @@ class TagAlignSegInference(EncoderDecoder):
         text_embedding,
         with_bg,
         test_cfg=dict(),
-        bg_thresh=0.5,
-        clip_w=0.3,
-        scale=10, 
-        bias=-2.5,
         **kwargs,
     ):
         super(EncoderDecoder, self).__init__()  # init BaseSegmenter (parent of EncoderDecoder)
@@ -22,11 +18,9 @@ class TagAlignSegInference(EncoderDecoder):
         if not isinstance(test_cfg, mmcv.Config):
             test_cfg = mmcv.Config(test_cfg)
         self.test_cfg = test_cfg
-        self.bg_thresh = bg_thresh
-        self.clip_w = clip_w
-
-        self.scale = scale
-        self.bias = bias
+        self.bg_thresh = test_cfg['bg_thresh']
+        self.clip_w = test_cfg['clip_w']
+        self.scale = test_cfg['scale']
 
         self.model = model
         self.register_buffer("text_embedding", text_embedding)
@@ -49,7 +43,6 @@ class TagAlignSegInference(EncoderDecoder):
             self.text_embedding,
             clip_w=self.clip_w,
             scale=self.scale,
-            bias=self.bias
         )
 
         B, N, H, W = masks.shape

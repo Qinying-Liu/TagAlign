@@ -34,11 +34,11 @@ data:
 
 model:
   type: TagAlign
-  clip_model: ../packs/ViT-B-16.pt  
+  clip_model: /data/liuqy/ViT-B-16.pt  
   use_clip_surgery: true  # use clip surgery
   ie_ignore_last_attn: false  # use MaskCLIP
 
-  projector:
+  decoder:
     type: Transformer
     n_layers: 1
     n_heads: 16

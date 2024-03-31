@@ -1,10 +1,31 @@
 model:
-  projector:
+  decoder:
     type: Transformer
     n_layers: 1
     n_heads: 16
     mlp_ratio: 4
 
+  masker:
+    type: Masker
+    decoder:
+      type: GDecoder
+      double: true
+      n_layers: 2
+      kernel_size: 3
+      act: gelu
+      norm: ln
+      text: false
+
+    sim2mask:
+      init_w: 10.0
+      init_b: 0
+      gumbel_tau: 1.0
+      learnable_w: true
+      learnable_b: false
+      learnable: false
+      scale: 10.0
+      ratio: 0.0
+      
 evaluate:
   bg_thresh: 0.4
   clip_w: 0.3

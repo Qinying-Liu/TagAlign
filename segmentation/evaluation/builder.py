@@ -23,7 +23,7 @@ def build_dataset_class_tokens(text_transform, template_set, classnames):
 def build_seg_dataset(config, key):
     """Build a dataset from config."""
     cfg = mmcv.Config.fromfile(config)
-    if 'ImageNet' in key:
+    if 'imagenet' in key:
         from mmsegmentation_obsolete.mmseg.datasets import build_dataset
     else:
         from mmseg.datasets import build_dataset
@@ -33,7 +33,7 @@ def build_seg_dataset(config, key):
 
 
 def build_seg_dataloader(dataset, key):
-    if 'ImageNet' in key:
+    if 'imagenet' in key:
         from mmsegmentation_obsolete.mmseg.datasets import build_dataloader
     else:
         from mmseg.datasets import build_dataloader

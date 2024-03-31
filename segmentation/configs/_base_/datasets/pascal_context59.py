@@ -1,7 +1,7 @@
 _base_ = ["../custom_import.py"]
 # dataset settings
 dataset_type = "PascalContextDataset59"
-data_root = "../data/VOC2010"
+data_root = "/data/liuqy/VOCdevkit/VOC2010"
 img_norm_cfg = dict(mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
 test_pipeline = [
     dict(type="LoadImageFromFile"),
@@ -30,4 +30,9 @@ data = dict(
     )
 )
 
-test_cfg = dict(mode="slide", stride=(224, 224), crop_size=(448, 448))
+test_cfg = dict(bg_thresh=0.0,
+                scale=30.0, 
+                clip_w=0.5,
+                mode="slide", 
+                stride=(112, 112), 
+                crop_size=(448, 448))
