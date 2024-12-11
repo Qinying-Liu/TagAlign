@@ -49,7 +49,7 @@ For the training phase, we utilize the CC12M dataset. Researchers can procure th
 For evaluation, refer to the [GroupVit](https://github.com/NVlabs/GroupViT) to properly prepare the datasets. Make sure to update the image directories in 'segmentation/configs/_base_/datasets/*.py' as necessary.
 
 ### Train and Evaluate
-1. Modify the 'tagalign.yml'. We provide the processed tag_file (object_list.csv) and label_file (CC12M_url_object_index.json). We provide the urls of images, please change them to your local path.
+1. Modify the 'tagalign.yml'. We provide the processed tag_file (object_list.csv) and label_file (CC12M_url_object_index.json). We provide the URLs of the images; please change them to your local paths.
 
 2. Train the TagAlign model by run 
    ```
