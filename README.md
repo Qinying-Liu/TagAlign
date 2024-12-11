@@ -20,7 +20,7 @@
 </div>
 
 ## 📜 News
-[2023/12/25] Release [tag](https://drive.google.com/drive/folders/1jhc3Eef6mUpsIYuMY5XWzeDqrIhJSDDF?usp=sharing).
+[2024/12/11] Release [tag](https://drive.google.com/drive/folders/1jhc3Eef6mUpsIYuMY5XWzeDqrIhJSDDF?usp=sharing).
 
 [2023/12/25] The [paper](https://arxiv.org/abs/2312.14149) and [project page](https://qinying-liu.github.io/Tag-Align/) are released!
 
